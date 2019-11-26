@@ -1,7 +1,6 @@
-;;TODO 敵の攻撃どうする　階段の画像
-;;ダメージフォントの色どうする　拝啓どうする　
+;;TODO 
 ;; 敵の種類ふやす
-;;オークの攻撃
+;;
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -138,7 +137,7 @@
        do (when (and (or (eq (obj-type obj) :hard-block)
 			 (eq (obj-type obj) :soft-block))
 		     (obj-hit-p p obj))
-	    (setf hoge t)
+	    (setf hoge obj)
 	    (return)))
     hoge))
 
@@ -205,19 +204,19 @@
   (case (dir p)
     (:down  (setf (img p) +down+
 		  (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
-		  (h p) *r-tate-h*
+		  (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
 		  (moto-w p) *tate-w* (moto-h p) *tate-h*))
     (:up    (setf (img p) +up+
 		  (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
-		  (h p) *r-tate-h*
+		  (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
 		  (moto-w p) *tate-w* (moto-h p) *tate-h*))
     (:left  (setf (img p) +left+
 		  (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
-		  (h p) *r-yoko-h*
+		  (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
 		  (moto-w p) *yoko-w* (moto-h p) *yoko-h*))
     (:right (setf (img p) +right+
 		  (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
-		  (h p) *r-yoko-h*
+		  (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
 		  (moto-w p) *yoko-w* (moto-h p) *yoko-h*))))
 
 
@@ -258,9 +257,9 @@
 (defun update-atk-img (p)
   (incf (atk-c p))
   (when (zerop (mod (atk-c p) (atk-spd p)))
-    (incf (atk-img p)))
-  (set-atk-img p)
-  (set-buki-img p)
+    (incf (atk-img p))
+    (set-atk-img p))
+  ;;(set-buki-img p)
   (when (> (atk-img p) 2)
     (set-normal-img p)
     (setf (atk-now p) nil
@@ -280,6 +279,13 @@
 		  (img kabe) (aref *images* +yuka+))
 	    ))))
 
+;;画像右側めりこみ判定
+(defun merikomi-hantei (p)
+  (let ((blo  (block-hit-p p)))
+    (when blo
+      (setf (x p) (- (x blo) (w p))))))
+
+
 ;;キー入力処理
 (defun update-input-key (p)
   (with-slots (left right down up z c shift) *keystate*
@@ -297,7 +303,8 @@
       (left
        (when (null shift)
 	 (setf (img p) +left+
-	       (w p) *r-yoko-w*
+	       (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
+	       (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
 	       (moto-w p) *yoko-w*
 	       (dir p) :left))
        (decf (x p) (ido-spd p))
@@ -306,7 +313,8 @@
       (right
        (when (null shift)
 	 (setf (img p) +right+
-	       (w p) *r-yoko-w*
+	       (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
+	       (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
 	       (moto-w p) *yoko-w*
 	       (dir p) :right))
        (incf (x p) (ido-spd p))
@@ -315,21 +323,27 @@
       (up
        (when (null shift)
 	 (setf (img p) +up+
-	       (w p) *r-tate-w*
+	       (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
+	       (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
 	       (moto-w p) *tate-w*
 	       (dir p) :up))
        (decf (y p) (ido-spd p))
-       (when (block-hit-p p)
-	 (incf (y p) (ido-spd p))))
+       (let ((blo  (block-hit-p p)))
+	 (when blo
+	   (incf (y p) (ido-spd p))
+	   (merikomi-hantei p))))
       (down
        (when (null shift)
 	 (setf (img p) +down+
-	       (w p) *r-tate-w*
+	       (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
+	       (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
 	       (moto-w p) *tate-w*
 	       (dir p) :down))
        (incf (y p) (ido-spd p))
-       (when (block-hit-p p)
-	 (decf (y p) (ido-spd p)))))))
+       (let ((blo  (block-hit-p p)))
+	 (when blo
+	   (decf (y p) (ido-spd p))
+	   (merikomi-hantei p)))))))
 
 
 ;;プレイヤー被ダメージ処理
@@ -339,6 +353,8 @@
 		   (null (dead e)))
 	  (set-damage e p) 
 	  (setf (dmg-c p) 50))))
+
+	 
 
 ;;プレイヤーの色々更新
 (defun update-player (p)
@@ -491,7 +507,7 @@
       (setf img (+ (funcall walk-func img 1)))
       (setf walk-c 0))))
 
-;;スライムの移動
+;;スライムの行動
 (defun update-slime (e)
   (incf (dir-c e)) ;;移動カウンター更新
   (incf (walk-c e))
@@ -501,7 +517,7 @@
 	     (setf (dir-c e) 0))
       (update-slime-pos e)))
 
-;;オークの移動
+;;オークの行動
 (defun update-orc (e)
   (cond
     ((atk-now e)
@@ -509,15 +525,15 @@
     (t
      (incf (dir-c e)) ;;移動カウンター更新
      (incf (walk-c e))
-     (when (= 1 (random 2))
-       (set-enemy-atk e))
+     ;; (when (= 1 (random 2)) ;;攻撃
+     ;;   (set-enemy-atk e))
      (update-enemy-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
 	 (update-slime-pos e)))))
 
-;;ブリガンドの移動
+;;ブリガンドの行動
 (defun update-brigand (e)
   (incf (dir-c e)) ;;移動カウンター更新
   (incf (walk-c e))
@@ -681,6 +697,8 @@
   (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) 10)
   (text-out *hmemdc* (format nil "Lv:~2d" (level *p*)) (+ *map-w* 10) 50)
   (text-out *hmemdc* (format nil "HP:~2d" (hp *p*)) (+ *map-w* 10) 90)
+  (text-out *hmemdc* (format nil "x:~2d" (x *p*)) (+ *map-w* 10) 130)
+  (text-out *hmemdc* (format nil "y:~2d" (y *p*)) (+ *map-w* 10) 170)
   (when (key? *p*)
     (select-object *hogememdc* (aref *images* +key+))
     (trans-blt (+ *map-w* 10) 140 *obj-w* *obj-h* *r-blo-w* *r-blo-h*)))
