@@ -105,19 +105,6 @@
 (defparameter *r-yoko-w/2* (floor *r-yoko-w* 2))
 (defparameter *r-yoko-h/2* (floor *r-yoko-h* 2))
 
-;;元の横向きのプレイヤー攻撃画像のサイズ
-(defparameter *atk-yoko-w* 36)
-(defparameter *atk-yoko-h* 32)
-;;表示する横向きのプレイヤー攻撃画像のサイズ
-(defparameter *r-atk-yoko-w* 44)
-(defparameter *r-atk-yoko-h* 40)
-
-;;元の縦向きのプレイヤー攻撃画像のサイズ
-(defparameter *atk-tate-w* 32)
-(defparameter *atk-tate-h* 46)
-;;表示する縦のプレイヤー攻撃画像のサイズ
-(defparameter *r-atk-tate-w* 40)
-(defparameter *r-atk-tate-h* 54)
 
 (defparameter *w/2* (floor *obj-w* 2))
 (defparameter *h/2* (floor *obj-h* 2))
