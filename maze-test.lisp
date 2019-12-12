@@ -118,10 +118,17 @@
 
 ;;敵の種類ランダム
 (defun random-enemy ()
-  (case (random 3)
+  (case (random 5)
     (0 :slime)
     (1 :orc)
-    (2 :brigand)))
+    (2 :brigand)
+    (3 :hydra)
+    (4 :dragon)))
+
+;;階層ごとのドロップアイテム
+(defun drop-item-type ()
+  (nth (stage *p*) *drop-item*))
+    
 
 ;;敵を配置する
 (defun set-enemies (map)
@@ -132,38 +139,35 @@
 		(e (make-instance 'player :x (* (car e-pos) *r-blo-w*)
 				  :y (* (cadr e-pos) *r-blo-h*)
 				  :moto-w 32 :moto-h 32
-				  :str 10
+				  :str 10 :def 3
 				  :w 40 :h 40 ::w/2 20 :h/2 20
 				  :obj-type (random-enemy)
-				  :buki (make-instance 'buki :atk 5)
 				  :img 1)))
-	   
-      (push e (donjon-enemies map))))))
+	   (when (= i 0)
+	     (setf (drop e) (drop-item-type)))
+	   (push e (donjon-enemies map))))))
 
 ;;マップ設定
-(defun set-map (map pt moto)
+(defun set-map (map moto)
   (setf (donjon-tate map) 11
         (donjon-yoko map) 11)
   (loop for i from 0 below (donjon-tate map) do
        (loop for j from 0 below (donjon-yoko map) do
-	    (if (= (aref moto i j) 1)
-		(setf (party-posx pt) j
-		      (party-posy pt) i))
 	    (setf (aref (donjon-map map) i j) (aref moto i j)))))
 
 
 ;;オブジェクトの画像
 (defun map-obj-img (num)
   (case num
-    (30 (aref *images* +soft-block+)) ;; 壁
-    (40 (aref *images* +hard-block+)) ;;壊せない壁
-    (0  (aref *images* +yuka+)) ;;床
-    (4  (aref *images* +soft-block+)) ;; 薬
-    (5  (aref *images* +soft-block+)) ;;ボス
-    (3  (aref *images* +key+)) ;; 鍵
-    (2  (aref *images* +door+)) ;; 下り階段
-    (6  (aref *images* +soft-block+)) ;; イベント
-    (7  (aref *images* +soft-block+)))) ;; 中ボス ハツネツエリア
+    (30 +soft-block+) ;; 壁
+    (40 +hard-block+) ;;壊せない壁
+    (0  +yuka+) ;;床
+    (4  +soft-block+) ;; 薬
+    (5  +soft-block+) ;;ボス
+    (3  +key+) ;; 鍵
+    (2  +door+) ;; 下り階段
+    (6  +soft-block+) ;; イベント
+    (7  +soft-block+))) ;; 中ボス ハツネツエリア
 
 ;;オブジェクトの画像のタイプ
 (defun map-obj-type (num)
@@ -219,7 +223,7 @@
           (donjon-path map) nil)
     (cond
       ((= (tower-lv p) 100) ;; 100階は固定マップ
-       (set-map map p *map100*))
+       (set-map map *map100*))
       (t
        ;;奇数座標を初期位置にする
        (setf x (random (floor (donjon-yoko map) 2))

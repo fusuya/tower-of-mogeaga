@@ -3,7 +3,7 @@
   `(progn
      ,@(loop for i from 0
              for name in names
-        collect `(defconstant ,name ,i))))
+        collect `(defparameter ,name ,i))))
 
 ;;".\\images\\*.*" ロードした画像の配列を作る
 (defun make-imgs-array (img-path)
@@ -19,18 +19,32 @@
 (defparameter *p-imgs* nil)
 (defparameter *buki-imgs* nil)
 (defparameter *hammer-imgs* nil)
-(defparameter *slime-anime* nil)
-(defparameter *orc-anime* nil)
-(defparameter *brigand-anime* nil)
+(defparameter *monster-anime* nil)
+
+;;プレイヤー画像切り替えよう
 (defconstant +atk-d+ 0)
 (defconstant +atk-l+ 3)
 (defconstant +atk-r+ 6)
 (defconstant +atk-u+ 9)
-
 (defconstant +down+ 12)
 (defconstant +left+ 13)
 (defconstant +right+ 14)
 (defconstant +up+ 15)
+
+;;敵画像切り替えよう
+(defconstant +brigand-anime+ 0)
+(defconstant +dragon-anime+ 3)
+(defconstant +hydra-anime+ 6)
+(defconstant +orc-anime+ 9)
+(defconstant +slime-anime+ 12)
+(defconstant +hydra-atk+ 15)
+(defconstant +brigand-ball+ 16)
+(defconstant +dragon-fire+ 17)
+(defconstant +orc-atk+ 18)
+
+;;敵の攻撃演出時間
+(defparameter *orc-atk-effect-time* 30)
+(defparameter *hydra-atk-effect-time* 30)
 
 ;;透過用
 (defcfun (%set-layered-window-attributes "SetLayeredWindowAttributes" :convention :stdcall)
@@ -147,7 +161,7 @@
 
 (defparameter *kabe-break* nil)
 
-(my-enum +brigand+ +door+ +dragon+ +hard-block+ +e-atk+ +hydra+ +key+ +yote1+ +orc+ +slime+ +soft-block+ +yuka+ +yusha+)
+(my-enum +boots+ +brigand+ +door+ +dragon+ +hard-block+ +hydra+ +key+ +yote1+ +orc+ +potion+ +slime+ +soft-block+ +yuka+ +yusha+)
 
 (defclass keystate ()
   ((right :accessor right :initform nil :initarg :right)
@@ -181,33 +195,10 @@
 (defparameter *yote1-name*
   '("ヨテイチ" "メタイチ" "うなぎ" "ナニモシナイ"))
 
-;; (defstruct party
-;;   (posx 0)
-;;   (posy 0)
-;;   (players nil)
-;;   (heal 2)
-;;   (hammer 5)
-;;   (map 1)
-;;   (msg nil)
-;;   (mode nil) ;;バトルモードや移動モードその他
-;;   (item nil) ;;持ち物リスト
-;;   (drop nil) ;;敵からのドロップ品一時保管場所
-;;   (new-nakama nil)
-;;   (monster-num 0)) ;;戦闘時の敵の総数
 
-;; (defstruct player
-;;   (hp 30)
-;;   (maxhp 30)
-;;   (agi 30)
-;;   (maxagi 30)
-;;   (str 30)
-;;   (maxstr 30)
-;;   (level 1)
-;;   (level-exp 100)
-;;   (exp 0)
-;;   (name nil)
-;;   (type 0) ;; 0:プレイヤー 1:オーク 2:スライム 3:ヒドラ 4:ブリガンド 5 メテルヨテイチ
-;;   (buki '("なし" 0 0 0)))
+;;階層ごとのドロップアイテムリスト
+(defparameter *drop-item*
+  '(nil :boots :hammer))
 
 (defstruct donjon
   (map nil)  ;;マップ
@@ -254,6 +245,7 @@
    (agi      :accessor agi      :initform 30  :initarg :agi)
    (def      :accessor def      :initform 30  :initarg :def)
    (str      :accessor str      :initform 30  :initarg :str)
+   (deg      :accessor deg      :initform 10  :initarg :deg)
    (dead     :accessor dead     :initform nil :initarg :dead) ;;死亡判定
    (atk-spd  :accessor atk-spd  :initform 8   :initarg :atk-spd) ;;攻撃速度
    (ido-spd  :accessor ido-spd  :initform 2   :initarg :ido-spd) ;;移動速度
@@ -274,6 +266,11 @@
    (dir-c    :accessor dir-c    :initform 0   :initarg :dir-c) ;;方向転換用カウンター
    (atk-now  :accessor atk-now  :initform nil :initarg :atk-now)
    (hammer-now :accessor hammer-now  :initform nil :initarg :hammer-now)
+   (centerx      :accessor centerx      :initform 30  :initarg :centerx)
+   (centery      :accessor centery      :initform 30  :initarg :centery)
+   (drop     :accessor drop     :initform nil :initarg :drop)
+   (item     :accessor item     :initform nil :initarg :item) ;;所持アイテム
+   (stage    :accessor stage    :initform 1   :initarg :stage) ;;プレイヤーのいる階層
    (atk-c    :accessor atk-c    :initform 0   :initarg :atk-c) ;;攻撃モーション更新用
    (atk-img  :accessor atk-img  :initform 0   :initarg :atk-img) ;;攻撃画像番号 ０～２  
    ))

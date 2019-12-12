@@ -1,6 +1,7 @@
-;;TODO 
-;; 敵の種類ふやす
-;;
+;;TODO  アイテムの種類を増やす
+;;ボス
+;;剣の当たり判定
+
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -35,18 +36,14 @@
   (delete-object-array *images*)
   (delete-object-array *p-imgs*)
   (delete-object-array *hammer-imgs*)
-  (delete-object-array *slime-anime*)
-  (delete-object-array *orc-anime*)
-  (delete-object-array *brigand-anime*)
+  (delete-object-array *monster-anime*)
   (delete-object-array *buki-imgs*))
 
 (defun load-images ()
   (setf *images* (make-imgs-array "./img/img-*.*")
 	*p-imgs* (make-imgs-array "./img/p*.*")
 	*hammer-imgs* (make-imgs-array "./img/ham*.*")
-	*slime-anime* (make-imgs-array "./img/slime*.*")
-	*orc-anime* (make-imgs-array "./img/orc*.*")
-	*brigand-anime* (make-imgs-array "./img/brigand*.*")
+	*monster-anime* (make-imgs-array "./img/anime-*.*")
 	*buki-imgs* (make-imgs-array "./img/buki*.*")))
 
 ;;ゲーム初期化
@@ -60,7 +57,7 @@
         *start-time* (get-internal-real-time)
         *ha2ne2* nil
         *copy-buki* (copy-tree *buki-d*)
-        *p* (make-instance 'player :w *r-tate-w* :h *r-tate-h*
+        *p* (make-instance 'player :w *r-tate-w* :h *r-tate-h* :str 10 :def 10
 			   :moto-w *tate-w* :moto-h *tate-h* :atk-now nil :ido-spd 2
 			   :w/2 (floor *r-tate-w* 2) :h/2 (floor *r-tate-h* 2)
 			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 5))
@@ -111,13 +108,8 @@
       (let ((hoge (nth (random (length lst)) lst)))
 	(rand-dir (remove hoge lst) (cons hoge new-lst)))))
 
-;;プレイヤーの生死判定
-(defun player-dead (p)
-  (<= (player-hp p) 0))
 
-;;プレイヤーたちが死んでないかチェック
-(defun players-dead (pt)
-  (every #'player-dead (party-players pt)))
+
 
 
 ;;判定
@@ -142,16 +134,26 @@
     hoge))
 
 ;;プレイヤーと鍵とドアの当たり判定
-(defun player-hit-key-door ()
+(defun player-hit-item ()
   (loop for obj in (donjon-objects *map*)
      do
        (when (obj-hit-p *p* obj)
 	 (case (obj-type obj)
 	   (:key (setf (key? *p*) t)
-		 (setf (img obj) (aref *images* +yuka+)
+		 (setf (img obj) +yuka+
 		       (obj-type obj) :yuka))
+	   (:potion
+	    (setf (hp *p*) (maxhp *p*))
+	    (setf (donjon-objects *map*)
+		  (remove obj (donjon-objects *map*) :test #'equal)))
+	   (:boots
+	    (setf (ido-spd *p*) 3) ;;移動速度アップ
+	    (push obj (item *p*))
+	    (setf (donjon-objects *map*)
+		  (remove obj (donjon-objects *map*) :test #'equal)))
 	   (:door
 	    (when (key? *p*)
+	      (incf (stage *p*))
 	      (setf (key? *p*) nil)
 	      (setf *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
 	      (maze *map* *p*)))))))
@@ -160,12 +162,10 @@
 (defun damage-keisan (p e)
   (with-slots (buki) p
     (if buki
-	(let* ((a1 (+ (str p) (atk buki)))
-	       (a2 (random (max 1 (- a1 (def e))))))
-	  (max 0 (- (+ a1 a2) (def e))))
-	(let* ((a1 (str p))
-	       (a2 (random (max 1 (- a1 (def e))))))
-	  (max 0 (- (+ a1 a2) (def e)))))))
+	(let* ((a1 (+ (str p) (atk buki))))
+	  (floor (* (- a1 (/ (def e) 2)) (/ (+ 99 (random 55)) 256))))
+        (let* ((a1 (str p)))
+	  (floor (* (- a1 (/ (def e) 2)) (/ (+ 99 (random 55)) 256)))))))
 
 
 ;;ダメージ計算して　表示する位置とか設定
@@ -189,9 +189,11 @@
 (defun buki-hit-enemy (p)
   (with-slots (buki) p
     (loop for e in (donjon-enemies *map*)
-       do (when (and (obj-hit-p buki e)
-		     (null (dead e)))
-	    (set-damage p e))))) ;;ダメージ処理
+       do (case (obj-type e)
+	    ((:slime :orc :hydra :dragon :brigand :briball)
+	     (when (and (obj-hit-p buki e)
+			(null (dead e)))
+	       (set-damage p e))))))) ;;ダメージ処理
 	    ;; (when (>= 0 (hp e))
 	    ;;   (setf (donjon-enemies *map*)
 	    ;; 	    (remove e (donjon-enemies *map*) :test #'equal))))
@@ -268,7 +270,6 @@
 	  (atk-img p) 0)))
 
 
-
 ;;壁壊す
 (defun hammer-hit-kabe (p)
   (with-slots (buki) p
@@ -276,7 +277,7 @@
        do (when (and (obj-hit-p buki kabe)
 		     (eq (obj-type kabe) :soft-block))
 	    (setf (obj-type kabe) :yuka
-		  (img kabe) (aref *images* +yuka+))
+		  (img kabe) +yuka+)
 	    ))))
 
 ;;画像右側めりこみ判定
@@ -352,7 +353,11 @@
      do (when (and (obj-hit-p p e)
 		   (null (dead e)))
 	  (set-damage e p) 
-	  (setf (dmg-c p) 50))))
+	  (setf (dmg-c p) 50)
+	  (case (obj-type e)
+	    (:briball
+	     (setf (donjon-enemies *map*)
+		   (remove e (donjon-enemies *map*) :test #'equal)))))))
 
 	 
 
@@ -369,7 +374,7 @@
      (update-atk-img p))
     (t
      (update-input-key p)
-     (player-hit-key-door))))
+     (player-hit-item))))
     
 ;;ランダム方向へ移動 '(:up :down :right :left :stop)
 (defun set-rand-dir (e)
@@ -424,75 +429,39 @@
 	      (set-rand-dir e)))))
 
 
-;;敵の攻撃の画像を設定
-(defun set-enemy-atk-img (e)
-  (with-slots (buki x y dir) e
-    (case dir
-      (:down  (setf (moto-w buki) 32 (moto-h buki) 32
-		    (w buki) 40 (h buki) 40
-		    (w/2 buki) 20 (h/2 buki) 20
-		    (x buki) x
-		    (y buki) (+ y 40)))
-      (:up    (setf (moto-w buki) 32 (moto-h buki) 32
-		    (w buki) 40 (h buki) 40
-		    (w/2 buki) 20 (h/2 buki) 20
-		    (x buki) x
-		    (y buki) (- y 40)))
-      (:left  (setf (moto-w buki) 32 (moto-h buki) 32
-		    (w buki) 40 (h buki) 40
-		    (w/2 buki) 20 (h/2 buki) 20
-		    (x buki) (- x 40)
-		    (y buki) y))
-      (:right (setf (moto-w buki) 32 (moto-h buki) 32
-		    (w buki) 40 (h buki) 40
-		    (w/2 buki) 20 (h/2 buki) 20
-		    (x buki) (+ x 40)
-		    (y buki) y)))))
 
-;;敵とプレイヤーの距離判定
-(defun enemy-can-atk? (e)
+;;dx dy以内のeから見たプレイヤーの方向を返す
+(defun enemy-can-atk? (e dx dy)
   (let* ((diffx (- (x e) (x *p*)))
 	 (diffy (- (y e) (y *p*)))
 	 (absx (abs diffx))
 	 (absy (abs diffy)))
-    (if (and (>= 32 absx)
-	     (>= 32 absy))
+    (if (and (>= dx absx)
+	     (>= dy absy))
 	(cond
 	  ((and (>= diffx 0) (>= diffy 0))
 	   (if (>= absx absy)
-	       :right :up))
+	       :left :up))
 	  ((and (>= diffx 0) (> 0 diffy))
 	   (if (>= absx absy)
-	       :right :down))
+	       :left :down))
 	  ((and (> 0 diffx) (>= diffy 0))
 	   (if (>= absx absy)
-	       :left :up))
+	       :right :up))
 	  ((and (> 0 diffx) (> 0 diffy))
 	   (if (>= absx absy)
-	       :left :down))
+	       :right :down))
 	  (t nil))
 	nil)))
 
-;;敵の攻撃設定
-(defun set-enemy-atk (e)
-  (let ((atk? (enemy-can-atk? e)))
-    (if atk?
-	(progn (setf (dir e) atk?
-		     (atk-now e) t)
-	       (set-enemy-atk-img e))
-        nil)))
 
-(defun update-enemy-atk (e)
-  (incf (atk-c e))
-  (when (zerop (mod (atk-c e) (atk-spd e)))
-    (incf (atk-img e)))
-  ;;(set-atk-img p)
-  ;;(set-buki-img p)
-  (when (> (atk-img e) 2)
-    ;;(set-normal-img p)
-    (setf (atk-now e) nil
-	  (atk-c e) 0)))
-	  ;;(atk-img e) 0)))
+
+;;プレイヤーにeの攻撃があたる方向 atk-x = 攻撃距離
+(defun set-can-atk-dir (e atk-x atk-y)
+  (let ((f-dir (enemy-can-atk? e atk-x atk-y)))
+    (if f-dir
+	(setf (dir e) f-dir)
+	nil)))
       
 
 ;;歩行グラフィック更新
@@ -517,82 +486,219 @@
 	     (setf (dir-c e) 0))
       (update-slime-pos e)))
 
+
+;;オークの攻撃エフェクト追加
+(defun add-orc-atk-effect (e dx dy)
+  (let ((atk (make-instance 'player :img 0 :obj-type :orc-atk
+			    :x (- (x e) dx) :y (- (y e) dy)
+			    :str (str e)
+			    :moto-w (moto-w e) :moto-h (moto-h e)
+			    :w (w e) :h (h e) :w/2 (w/2 e) :h/2 (h/2 e))))
+    (if (null (block-hit-p atk)) ;;ブロックにぶつかるなら追加しない
+	(push atk (donjon-enemies *map*)))))
+
+;;攻撃エフェクト出す方向
+(defun check-orc-atk-effect-dir (e)
+  (case (dir e)
+    (:up (add-orc-atk-effect e 0 (h e)))
+    (:down (add-orc-atk-effect e 0 (- (h e))))
+    (:left (add-orc-atk-effect e (w e) 0))
+    (:right (add-orc-atk-effect e (- (w e)) 0))))
+
+;;攻撃エフェクト消えるまで待つ
+(defun wait-atk-effect (e wait-time)
+  (incf (atk-c e))
+  (when (>= (atk-c e) wait-time)
+    (setf (atk-now e) nil
+	  (atk-c e) 0)))
+			    
 ;;オークの行動
 (defun update-orc (e)
   (cond
     ((atk-now e)
-     (update-enemy-atk e))
+     (wait-atk-effect e *orc-atk-effect-time*))
     (t
      (incf (dir-c e)) ;;移動カウンター更新
      (incf (walk-c e))
-     ;; (when (= 1 (random 2)) ;;攻撃
-     ;;   (set-enemy-atk e))
+     (when (and (= 1 (random 50)) ;;攻撃
+		(set-can-atk-dir e (w e) (h e)))
+       (check-orc-atk-effect-dir e)
+       (setf (atk-now e) t))
      (update-enemy-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
 	 (update-slime-pos e)))))
 
+
+;;ヒドラの攻撃エフェクトを敵として追加
+(defun add-hydra-atk (e)
+  (let ((atk (make-instance 'player  :img 0 :obj-type :hydra-atk
+			    :x (- (x e) 32) :y (y e) :str (str e)
+			    :moto-w 32 :moto-h 32 :dir (dir e)
+			    :w 32 :h 32 :w/2 16 :h/2 16)))
+    (setf (centerx atk) (+ (x e) (w/2 e))
+	  (centery atk) (+ (y e) (h/2 e)))
+    (push atk (donjon-enemies *map*))))
+
+;;ヒドラの攻撃更新 ヒドラの周りを一周させる
+(defun update-hydra-atk (e)
+  (incf (atk-c e))
+  (let* ((radian  (/ (* (deg e) pi) 180))
+	 (addx (floor (* (cos radian) 30)))
+	 (addy (floor (* (sin radian) 30))))
+    ;;(centerx (+ (x e) (w/2 e)))
+    ;;(centery (+ (y e) (h/2 e))))
+    (setf (x e) (- (+ (centerx e) addx) (w/2 e))
+	  (y e) (- (+ (centery e) addy) (h/2 e)))
+    (incf (deg e) 10)
+    (when (>= (atk-c e) *hydra-atk-effect-time*)
+      (setf (donjon-enemies *map*)
+	    (remove e (donjon-enemies *map*) :test #'equal)))))
+
+
+;;ヒドラの行動
+(defun update-hydra (e)
+  (cond
+    ((atk-now e)
+     (wait-atk-effect e *hydra-atk-effect-time*)) ;;TODO
+    (t
+     (incf (dir-c e)) ;;移動カウンター更新
+     (incf (walk-c e))
+     (when (and (= 1 (random 40)) ;;攻撃
+		(set-can-atk-dir e (w e) (h e) ))
+       (add-hydra-atk e)
+       (setf (atk-now e) t))
+     (update-enemy-anime-img e)
+     (if (> (dir-c e) 40)
+	 (progn (set-rand-dir e)
+		(setf (dir-c e) 0))
+	 (update-slime-pos e)))))
+
+;;ブリガンドのボール追加
+(defun add-bri-ball (e dx dy)
+  (let ((ball (make-instance 'player :img 0 :obj-type :briball
+			     :moto-w 20 :moto-h 20 :dir (dir e)
+			     :str (str e) :hp 1 :def 0
+			     :w 20 :h 20 :w/2 10 :h/2 10)))
+    (setf (x ball) (- (x e) dx)
+	  (y ball) (- (y e) dy))
+    (if (null (block-hit-p ball))
+	(push ball (donjon-enemies *map*)))))
+  
+
+;;ブリガンドボールの方向
+(defun add-bri-ball-dir (e)
+  (case (dir e)
+    (:up (add-bri-ball e 0 20))
+    (:down (add-bri-ball e 0 -20))
+    (:left (add-bri-ball e 20 0))
+    (:right (add-bri-ball e -20 0))))
+  
+
 ;;ブリガンドの行動
 (defun update-brigand (e)
   (incf (dir-c e)) ;;移動カウンター更新
   (incf (walk-c e))
   (update-enemy-anime-img e)
+  (when (and (= 1 (random 90)) ;;攻撃
+	     (set-can-atk-dir e 600 600))
+    (add-bri-ball-dir e))
   (if (> (dir-c e) 40)
       (progn (set-rand-dir e)
 	     (setf (dir-c e) 0))
       (update-slime-pos e)))
 
+;;火追加 
+(defun add-fire (e dx dy fire-n)
+  (let ((fire (make-instance 'player :img 0 :obj-type :fire
+			     :str (str e)
+			     :moto-w (moto-w e) :moto-h (moto-h e)
+			     :w (w e) :h (h e) :w/2 (w/2 e) :h/2 (h/2 e))))
+    (setf (x fire) (- (x e) (* dx fire-n))
+	  (y fire) (- (y e) (* dy fire-n)))
+    (if (null (block-hit-p fire)) ;;ブロックにぶつかるなら追加しない
+	(push fire (donjon-enemies *map*))
+	(setf (atk-now e) nil ;;初期化
+	      (atk-c e) 0))))
+
+;;火が追加できるか
+(defun check-add-fire (e)
+  (incf (atk-c e)) ;;火を追加する間隔
+  (when (zerop (mod (atk-c e) 30))
+    (let ((fire-n (floor (atk-c e) 30)))
+      (case (dir e)
+	(:up (add-fire e 0 (h e) fire-n))
+	(:down (add-fire e 0 (- (h e)) fire-n))
+	(:left (add-fire e (w e) 0 fire-n))
+	(:right (add-fire e (- (w e)) 0 fire-n)))
+      (when (= fire-n 3)
+	(setf (atk-now e) nil
+	      (atk-c e) 0)))))
+
+
+
+
+
+;;ドラゴンの行動
+(defun update-dragon (e)
+  (cond
+    ((atk-now e)
+     (check-add-fire e))
+    (t
+     (incf (dir-c e)) ;;移動カウンター更新
+     (incf (walk-c e))
+     (when (and (= 1 (random 50)) ;;攻撃
+		(set-can-atk-dir e (* (w e) 3) (* (h e) 3)))
+       (setf (atk-now e) t))
+        ;;(set-enemy-atk e))
+     (update-enemy-anime-img e)
+     (if (> (dir-c e) 40)
+	 (progn (set-rand-dir e)
+		(setf (dir-c e) 0))
+	 (update-slime-pos e)))))
+
+;;火の更新
+(defun update-fire (e)
+  (incf (atk-c e))
+  (when (>= (atk-c e) 50) ;;火を消す
+    (setf (donjon-enemies *map*)
+	  (remove e (donjon-enemies *map*) :test #'equal))))
+
+;;ぶりボールの更新
+(defun update-briball (e)
+  (case (dir e)
+    (:up (decf (y e)))
+    (:down (incf (y e)))
+    (:left (decf (x e)))
+    (:right (incf (x e))))
+  (when (block-hit-p e)
+    (setf (donjon-enemies *map*)
+	  (remove e (donjon-enemies *map*) :test #'equal))))
+
+(defun update-orc-atk-effect (e)
+  (incf (atk-c e))
+  (when (>= (atk-c e) *orc-atk-effect-time*)
+    (setf (donjon-enemies *map*)
+	  (remove e (donjon-enemies *map*) :test #'equal))))
+    
+
 ;;敵の位置更新
 (defun update-enemies ()
   (loop for e in (donjon-enemies *map*)
-     do (case (obj-type e)
-	  (:slime (update-slime e))
-	  (:brigand (update-brigand e))
-	  (:orc (update-orc e)))))
+     do (when (null (dead e))
+	  (case (obj-type e)
+	    (:slime   (update-slime e))
+	    (:dragon  (update-dragon e))
+	    (:brigand (update-brigand e))
+	    (:hydra   (update-hydra e))
+	    (:hydra-atk (update-hydra-atk e))
+	    (:fire    (update-fire e))
+	    (:briball (update-briball e))
+	    (:orc     (update-orc e))
+	    (:orc-atk (update-orc-atk-effect e))))))
 
 
-;;移動後のマップ更新
-(defun update-map (map pt y x)
-  (case (aref (donjon-map map) (+ (party-posy pt) y) (+ (party-posx pt) x))
-    (30 ;;壁
-     (if (and (> (party-hammer pt) 0)
-              (> (- (donjon-tate map) 1) (+ (party-posy pt) y) 0)
-              (> (- (donjon-yoko map) 1) (+ (party-posx pt) x) 0))
-         (setf *kabe-break* t
-               *ido?* nil)))
-         ;;(kabe-break (donjon-map map) pt y x)))
-        ;;(scr-format "「そっちには移動できません！！」~%")))
-    (40 ;;壁
-     nil)
-    (2 ;;くだり階段
-     (incf (party-map pt))
-     (maze map pt)
-     ;;２階降りるごとにハンマーもらえる
-     ;; (if (= (mod (party-map p) 2) 0)
-     ;; 	 (incf (party-hammer p)))
-     ;;５階降りるごとに宝箱の確率変わる
-     ;;(if (= (mod (party-map pt) 5) 0)
-     ;;    (setf *copy-buki* (omomin-zurashi *copy-buki*)))
-         ;;７階降りるごとに敵のレベル上がる
-     (if (= (mod (party-map pt) 7) 0)
-         (incf *monster-level*)))
-    ;;(3 ;;宝箱
-     ;;(item-get2 pt)
-     ;;(update-player-pos pt x y))
-    (5 ;;ボス
-     (update-player-pos pt x y)
-     (setf *battle?* t
-           *boss?* 1))
-    ;;(6 ;;イベント
-     ;;(update-player-pos pt x y)
-     ;;(moge-event pt))
-    (7 ;;中ボス
-     (update-player-pos pt x y)
-     (setf *battle?* t
-           *boss?* 2))
-    (otherwise
-     (update-player-pos pt x y))))
 
 
 ;;transparent-blt
@@ -603,40 +709,29 @@
 		   :transparent-color (encode-rgb 0 255 0)))
 
 
-(defun render-enemy-atk (e)
-  (with-slots (buki) e
-    (select-object *hogememdc* (aref *images* +e-atk+))
-    (trans-blt (x buki) (y buki) (moto-w buki) (moto-h buki)
-	       (w buki) (h buki))))
+
 
 ;;アニメ表示
-(defun render-enemy (e anime-arr)
+(defun render-enemy (e anime-num)
   (when (null (dead e)) ;;死んでなかったら表示
-    (when (atk-now e)
-      (render-enemy-atk e))
-    (select-object *hogememdc* (aref anime-arr (img e)))
-    (transparent-blt *hmemdc* (x e) (y e) *hogememdc* 0 0
-		     :width-source (moto-w e) :height-source (moto-h e)
-		     :width-dest (w e) :height-dest (h e)
-		     :transparent-color (encode-rgb 0 255 0))))
+    (select-object *hogememdc* (aref *monster-anime* (+ (img e) anime-num)))
+    (trans-blt (x e) (y e) (moto-w e) (moto-h e) (w e) (h e))))
+
 ;;敵表示
 (defun render-enemies ()
   (loop for e in (donjon-enemies *map*)
      do (case (obj-type e)
-	  (:slime (render-enemy e *slime-anime*))
-	  (:brigand (render-enemy e *brigand-anime*))
-	  (:orc   (render-enemy e *orc-anime*)))))
+	  (:slime (render-enemy e +slime-anime+))
+	  (:hydra (render-enemy e +hydra-anime+))
+	  (:hydra-atk (render-enemy e +hydra-atk+))
+	  (:dragon (render-enemy e +dragon-anime+))
+	  (:brigand (render-enemy e +brigand-anime+))
+	  (:fire  (render-enemy e +dragon-fire+))
+	  (:briball (render-enemy e +brigand-ball+))
+	  (:orc   (render-enemy e +orc-anime+))
+	  (:orc-atk (render-enemy e +orc-atk+)))))
 
 
-
-;;スライムアニメ表示
-(defun render-slime (e)
-  (when (null (dead e)) ;;死んでなかったら表示
-    (select-object *hogememdc* (aref *slime-anime* (img e)))
-    (transparent-blt *hmemdc* (x e) (y e) *hogememdc* 0 0
-		     :width-source (moto-w e) :height-source (moto-h e)
-		     :width-dest (w e) :height-dest (h e)
-		     :transparent-color (encode-rgb 0 255 0))))
 
 ;;攻撃時の武器表示
 (defun render-buki ()
@@ -669,7 +764,7 @@
 (defun render-block ()
   (loop for obj in (donjon-blocks *map*)
      do
-       (select-object *hogememdc* (img obj))
+       (select-object *hogememdc* (aref *images* (img obj)))
        (transparent-blt *hmemdc* (x obj) (y obj) *hogememdc* 0 0 :width-source *obj-w*
 			:height-source *obj-h*
 			:width-dest (w obj) :height-dest (h obj)
@@ -679,14 +774,14 @@
 (defun render-yuka ()
   (loop for obj in (donjon-yuka *map*)
      do
-       (select-object *hogememdc* (img obj))
+       (select-object *hogememdc* (aref *images* (img obj)))
        (trans-blt (x obj) (y obj) *obj-w* *obj-h* (w obj) (h obj))))
 
 ;;鍵とか描画
 (defun render-item ()
   (loop for obj in (donjon-objects *map*)
      do
-       (select-object *hogememdc* (img obj))
+       (select-object *hogememdc* (aref *images* (img obj)))
        (trans-blt (x obj) (y obj) *obj-w* *obj-h* (w obj) (h obj))))
 
 ;;プレイヤーのステータス表示
@@ -697,11 +792,19 @@
   (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) 10)
   (text-out *hmemdc* (format nil "Lv:~2d" (level *p*)) (+ *map-w* 10) 50)
   (text-out *hmemdc* (format nil "HP:~2d" (hp *p*)) (+ *map-w* 10) 90)
-  (text-out *hmemdc* (format nil "x:~2d" (x *p*)) (+ *map-w* 10) 130)
-  (text-out *hmemdc* (format nil "y:~2d" (y *p*)) (+ *map-w* 10) 170)
+  ;;(text-out *hmemdc* (format nil "x:~2d" (x *p*)) (+ *map-w* 10) 130)
+  ;;(text-out *hmemdc* (format nil "y:~2d" (y *p*)) (+ *map-w* 10) 170)
+  (text-out *hmemdc* (format nil "ハンマー") (+ *map-w* 10) 170)
+  (text-out *hmemdc* (format nil "残り:~d回" (hammer *p*)) (+ *map-w* 10) 210)
+  (text-out *hmemdc* (format nil "モゲアーガの塔 ~2,'0d階" (stage *p*)) 10 600)
+  (text-out *hmemdc* (format nil "持ち物") 10 640)
+  (loop for item in (item *p*)
+     for i from 0 do
+       (select-object *hogememdc* (aref *images* (img item)))
+       (trans-blt (+ 10 (* i 36)) 680 32 32 32 32))
   (when (key? *p*)
     (select-object *hogememdc* (aref *images* +key+))
-    (trans-blt (+ *map-w* 10) 140 *obj-w* *obj-h* *r-blo-w* *r-blo-h*)))
+    (trans-blt 10 720 *obj-w* *obj-h* *r-blo-w* *r-blo-h*)))
 
 
 ;;バックグラウンド
@@ -780,11 +883,31 @@
   (loop for e in (donjon-enemies *map*)
      do (update-damage-font e)))
 
+;;アイテムの画像
+(defun item-img (item)
+  (case item
+    (:boots +boots+)))
+
+;;アイテムの靴を落とす
+(defun enemy-drop-item (e)
+  (let ((item (drop e)))
+    (if item
+	(let ((drop-item (make-instance 'obj :img (item-img item)
+					:x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
+					:moto-w 32 :moto-h 32 :obj-type item)))
+	  (push drop-item (donjon-objects *map*)))
+	(when (>= (random 5) 3)
+	  (let ((drop-item (make-instance 'obj :img +potion+ 
+					:x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
+					:moto-w 32 :moto-h 32 :obj-type :potion)))
+	    (push drop-item (donjon-objects *map*)))))))
+
 ;;死んだ敵の情報を消す
 (defun delete-enemies ()
   (loop for e in (donjon-enemies *map*)
      do (when (and (null (dmg e))
 		   (dead e))
+	  (enemy-drop-item e)
 	  (setf (donjon-enemies *map*)
 		(remove e (donjon-enemies *map*) :test #'equal)))))
 
