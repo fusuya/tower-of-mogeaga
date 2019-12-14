@@ -12,7 +12,17 @@
       (30 30 30 30 30 30 30 30 30 30 30)))
 
 
-(defun init-map (map tate yoko) ;;マップを壁で埋める
+;;マップデータをクリア
+(defun clear-mapdate (map)
+  (setf (donjon-blocks map) nil
+	(donjon-enemies map) nil
+	(donjon-map map) nil
+	(donjon-objects map) nil
+	(donjon-path map) nil
+	(donjon-stop-list map) nil))
+
+;;マップを壁で埋める
+(defun full-block-map (map tate yoko) 
   (loop for i from 0 below tate do
        (loop for j from 0 below yoko do
 	    (if (or (= i 0) (= j 0) (= i (1- tate)) (= j (1- yoko)))
@@ -125,9 +135,9 @@
     (3 :hydra)
     (4 :dragon)))
 
-;;階層ごとのドロップアイテム
-(defun drop-item-type ()
-  (nth (stage *p*) *drop-item*))
+;;ドロップアイテムを返す 
+(defun drop-item-type (map)
+  (car (donjon-drop-item map)))
     
 
 ;;敵を配置する
@@ -136,7 +146,7 @@
         (enemy-num (+ 3 (random 6))))
     (loop for i from 0 to enemy-num do
 	 (let* ((e-pos (nth (random len) (donjon-path map)))
-		(e (make-instance 'player :x (* (car e-pos) *r-blo-w*)
+		(e (make-instance 'enemy :x (* (car e-pos) *r-blo-w*)
 				  :y (* (cadr e-pos) *r-blo-h*)
 				  :moto-w 32 :moto-h 32
 				  :str 10 :def 3
@@ -144,7 +154,7 @@
 				  :obj-type (random-enemy)
 				  :img 1)))
 	   (when (= i 0)
-	     (setf (drop e) (drop-item-type)))
+	     (setf (drop e) (drop-item-type map)))
 	   (push e (donjon-enemies map))))))
 
 ;;マップ設定
@@ -216,11 +226,9 @@
          (startx 0)
          (y 0)
          (starty 0))
+    (clear-mapdate map)
     (setf (donjon-map map) (make-array (list (donjon-tate map) (donjon-yoko map))));;マップ配列作成
-    (init-map (donjon-map map) (donjon-tate map) (donjon-yoko map)) ;;マップ初期化
-    (setf (donjon-stop-list map) nil
-          (donjon-enemies map) nil
-          (donjon-path map) nil)
+    (full-block-map (donjon-map map) (donjon-tate map) (donjon-yoko map)) ;;マップをブロックで埋める
     (cond
       ((= (tower-lv p) 100) ;; 100階は固定マップ
        (set-map map *map100*))
@@ -235,7 +243,7 @@
        (loop until (<= 2 (length (donjon-stop-list map)))
              do
              ;; 行き止まりが 1 つしか無かったのでやりなおし
-             (init-map (donjon-map map) (donjon-tate map) (donjon-yoko map))
+             (full-block-map (donjon-map map) (donjon-tate map) (donjon-yoko map))
              (setf (donjon-stop-list map) nil)
              (setf (aref (donjon-map map) starty startx) 0)
              (recursion starty startx map 0))
