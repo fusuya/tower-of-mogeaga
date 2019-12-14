@@ -196,9 +196,9 @@
   '("ヨテイチ" "メタイチ" "うなぎ" "ナニモシナイ"))
 
 
-;;階層ごとのドロップアイテムリスト
+;;ドロップアイテムリスト
 (defparameter *drop-item*
-  '(nil :boots :hammer))
+  '(:boots :potion :hammer1 :potion ))
 
 (defstruct donjon
   (map nil)  ;;マップ
@@ -209,6 +209,7 @@
   (yuka nil) ;;床
   (blocks nil) ;;ブロック
   (objects nil) ;;鍵とドア
+  (drop-item (copy-tree *drop-item*))
   (stop-list nil)) ;;行き止まりリスト
 
 
@@ -227,11 +228,11 @@
    (obj-type :accessor obj-type :initform 0      :initarg :obj-type)
    (img      :accessor img      :initform nil    :initarg :img)))
 
-(defclass dmg-obj (obj)
-  ((dmg-num  :accessor dmg-num   :initform 0   :initarg :dmg-num)
-   (miny     :accessor miny      :initform 0   :initarg :miny)
-   (maxy     :accessor maxy      :initform 0   :initarg :maxy)
-   (y-dir    :accessor y-dir     :initform :up :initarg :y-dir)
+(defclass dmg-font (obj)
+  ((dmg-num  :accessor dmg-num   :initform 0     :initarg :dmg-num)
+   (miny     :accessor miny      :initform 0     :initarg :miny)
+   (maxy     :accessor maxy      :initform 0     :initarg :maxy)
+   (y-dir    :accessor y-dir     :initform :up   :initarg :y-dir)
    (x-dir    :accessor x-dir     :initform :left :initarg :x-dir)
    ))
 
@@ -239,38 +240,47 @@
   ((atk  :accessor atk       :initform 0   :initarg :atk)
    (name :accessor name      :initform nil :initarg :name)))
 
-(defclass player (obj)
-  ((hp       :accessor hp       :initform 30  :initarg :hp)
-   (maxhp    :accessor maxhp    :initform 30  :initarg :maxhp)
-   (agi      :accessor agi      :initform 30  :initarg :agi)
-   (def      :accessor def      :initform 30  :initarg :def)
-   (str      :accessor str      :initform 30  :initarg :str)
-   (deg      :accessor deg      :initform 10  :initarg :deg)
-   (dead     :accessor dead     :initform nil :initarg :dead) ;;死亡判定
-   (atk-spd  :accessor atk-spd  :initform 8   :initarg :atk-spd) ;;攻撃速度
-   (ido-spd  :accessor ido-spd  :initform 2   :initarg :ido-spd) ;;移動速度
-   (key?     :accessor key?     :initform nil :initarg :key?) ;;鍵所持
-   (level    :accessor level    :initform 1   :initarg :level)
-   (dmg      :accessor dmg      :initform nil :initarg :dmg)
-   (dmg-c    :accessor dmg-c    :initform 0   :initarg :dmg-c) ;;ダメージを受ける間隔
-   (lvup-exp :accessor lvup-exp :initform 100 :initarg :lvup-exp) ;;次のレベルアップに必要な経験値
-   (expe     :accessor expe     :initform 0   :initarg :expe)
-   (name     :accessor name     :initform nil :initarg :name)
-   (hammer   :accessor hammer   :initform 2   :initarg :hammer)
-   (race     :accessor race     :initform nil :initarg :race) ;; 0:プレイヤー 1:オーク 2:スライム 3:ヒドラ 4:ブリガンド 5 メテルヨテイチ
-   (buki     :accessor buki     :initform nil :initarg :buki)
-   (walk-c   :accessor walk-c   :initform 0   :initarg :walk-c) ;;歩行アニメカウンター
+;;プレイヤーと敵で共通で使うやつ
+(defclass common (obj)
+  ((hp        :accessor hp        :initform 30    :initarg :hp)
+   (maxhp     :accessor maxhp     :initform 30    :initarg :maxhp)
+   (agi       :accessor agi       :initform 30    :initarg :agi)
+   (def       :accessor def       :initform 30    :initarg :def)
+   (str       :accessor str       :initform 30    :initarg :str)
+   (dead      :accessor dead      :initform nil   :initarg :dead)    ;;死亡判定
+   (ido-spd   :accessor ido-spd   :initform 2     :initarg :ido-spd) ;;移動速度
+   (level     :accessor level     :initform 1     :initarg :level)
+   (dmg       :accessor dmg       :initform nil   :initarg :dmg)     ;;ダメージ表示用
+   (dmg-c     :accessor dmg-c     :initform 0     :initarg :dmg-c)   ;;ダメージを受ける間隔
+   (race      :accessor race      :initform nil   :initarg :race)    ;;種族  0:プレイヤー 1:オーク 2:スライム 3:ヒドラ 4:ブリガンド 5 メテルヨテイチ
+   (walk-c    :accessor walk-c    :initform 0     :initarg :walk-c)  ;;歩行アニメカウンター
    (walk-func :accessor walk-func :initform #'+   :initarg :walk-func)
-   (tower-lv :accessor tower-lv :initform 1   :initarg :tower-lv)
-   (dir      :accessor dir      :initform :down :initarg :dir)
-   (dir-c    :accessor dir-c    :initform 0   :initarg :dir-c) ;;方向転換用カウンター
-   (atk-now  :accessor atk-now  :initform nil :initarg :atk-now)
-   (hammer-now :accessor hammer-now  :initform nil :initarg :hammer-now)
-   (centerx      :accessor centerx      :initform 30  :initarg :centerx)
-   (centery      :accessor centery      :initform 30  :initarg :centery)
-   (drop     :accessor drop     :initform nil :initarg :drop)
-   (item     :accessor item     :initform nil :initarg :item) ;;所持アイテム
-   (stage    :accessor stage    :initform 1   :initarg :stage) ;;プレイヤーのいる階層
-   (atk-c    :accessor atk-c    :initform 0   :initarg :atk-c) ;;攻撃モーション更新用
-   (atk-img  :accessor atk-img  :initform 0   :initarg :atk-img) ;;攻撃画像番号 ０～２  
+   (dir       :accessor dir       :initform :down :initarg :dir)     ;;現在の方向
+   (dir-c     :accessor dir-c     :initform 0     :initarg :dir-c)   ;;方向転換用カウンター
+   (atk-now   :accessor atk-now   :initform nil   :initarg :atk-now) ;;攻撃中か
+   (atk-c     :accessor atk-c     :initform 0     :initarg :atk-c)   ;;攻撃モーション更新用
+   (atk-img   :accessor atk-img   :initform 0     :initarg :atk-img) ;;攻撃画像番号 ０～２
+   (atk-spd   :accessor atk-spd   :initform 8     :initarg :atk-spd) ;;攻撃速度
+   ))
+
+;;適用
+(defclass enemy (common)
+  ((centerx      :accessor centerx    :initform 30  :initarg :centerx)
+   (centery      :accessor centery    :initform 30  :initarg :centery)
+   (drop         :accessor drop       :initform nil :initarg :drop)
+   (deg          :accessor deg        :initform 10  :initarg :deg)))
+
+;;プレイヤー用
+(defclass player (common)
+  ((key?       :accessor key?        :initform nil :initarg :key?)     ;;鍵所持
+   (lvup-exp   :accessor lvup-exp    :initform 100 :initarg :lvup-exp) ;;次のレベルアップに必要な経験値
+   (expe       :accessor expe        :initform 0   :initarg :expe)     ;;現在の所持経験値
+   (name       :accessor name        :initform nil :initarg :name)     ;;名前
+   (hammer     :accessor hammer      :initform 0   :initarg :hammer)   ;;所持ハンマー
+   (buki       :accessor buki        :initform nil :initarg :buki)     ;;武器
+   (tower-lv   :accessor tower-lv    :initform 1   :initarg :tower-lv) ;;現在の階層
+   (hammer-now :accessor hammer-now  :initform nil :initarg :hammer-now) ;;ハンマー中か
+   (item       :accessor item        :initform nil :initarg :item)     ;;所持アイテム
+   (stage      :accessor stage       :initform 1   :initarg :stage)    ;;プレイヤーのいる階層
+   (atkhit     :accessor atkhit      :initform nil :initarg :atkhit)   ;;攻撃モーション中に当たったか
    ))
