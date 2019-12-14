@@ -1,7 +1,7 @@
 ;;TODO  アイテムの種類を増やす
 ;;ボス
-;;剣の当たり判定
-
+;;プレイヤーのレベルアップ
+;;階層ごとに敵のレベルカエル
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -133,7 +133,7 @@
 	    (return)))
     hoge))
 
-;;プレイヤーと鍵とドアの当たり判定
+;;プレイヤーとフロアにあるアイテムの当たり判定
 (defun player-hit-item ()
   (loop for obj in (donjon-objects *map*)
      do
@@ -155,33 +155,37 @@
 	    (when (key? *p*)
 	      (incf (stage *p*))
 	      (setf (key? *p*) nil)
-	      (setf *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
+	      ;;(setf *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
 	      (maze *map* *p*)))))))
 
+
+
 ;;ダメージ計算
-(defun damage-keisan (p e)
-  (with-slots (buki) p
-    (if buki
-	(let* ((a1 (+ (str p) (atk buki))))
-	  (floor (* (- a1 (/ (def e) 2)) (/ (+ 99 (random 55)) 256))))
-        (let* ((a1 (str p)))
-	  (floor (* (- a1 (/ (def e) 2)) (/ (+ 99 (random 55)) 256)))))))
+(defmethod damage-calc ((atker player) defender)
+  (with-slots (buki) atker
+    (let* ((a1 (+ (str atker) (atk buki))))
+      (floor (* (- a1 (/ (def defender) 2)) (/ (+ 99 (random 55)) 256))))))
+
+;;ダメージ計算
+(defmethod damage-calc ((atker enemy) defender)
+  (let* ((a1 (str atker)))
+    (floor (* (- a1 (/ (def defender) 2)) (/ (+ 99 (random 55)) 256)))))
 
 
 ;;ダメージ計算して　表示する位置とか設定
-(defun set-damage (p e)
-  (with-slots (x y) e
+(defun set-damage (atker defender)
+  (with-slots (x y) defender
     (let* ((dmg-x (+ x 10))
 	   (dmg-y (+ y 20))
-	   (dmg-num (damage-keisan p e))
-	   (x-dir (if (eq (dir p) :left) :left :right))
-	   (dmg (make-instance 'dmg-obj :x dmg-x :y dmg-y :dmg-num  dmg-num
+	   (dmg-num (damage-calc atker defender))
+	   (x-dir (if (eq (dir atker) :left) :left :right))
+	   (dmg (make-instance 'dmg-font :x dmg-x :y dmg-y :dmg-num  dmg-num
 			       :y-dir :up :x-dir x-dir
 			       :maxy dmg-y :miny (- dmg-y 15))))
-      (decf (hp e) dmg-num) ;;hpを減らす
-      (when (>= 0 (hp e)) ;; hpが0以下になったら死亡
-	(setf (dead e) t))
-      (setf (dmg e) dmg) ;;ダメージを表示するためのもの
+      (decf (hp defender) dmg-num) ;;hpを減らす
+      (when (>= 0 (hp defender)) ;; hpが0以下になったら死亡
+	(setf (dead defender) t))
+      (setf (dmg defender) dmg) ;;ダメージを表示するためのもの
       )))
 
 
@@ -193,6 +197,7 @@
 	    ((:slime :orc :hydra :dragon :brigand :briball)
 	     (when (and (obj-hit-p buki e)
 			(null (dead e)))
+	       (setf (atkhit p) t) ;;攻撃があたりました
 	       (set-damage p e))))))) ;;ダメージ処理
 	    ;; (when (>= 0 (hp e))
 	    ;;   (setf (donjon-enemies *map*)
@@ -260,13 +265,17 @@
   (incf (atk-c p))
   (when (zerop (mod (atk-c p) (atk-spd p)))
     (incf (atk-img p))
-    (set-atk-img p))
+    (set-atk-img p)
+    (when (and (>= 2 (atk-img p))
+	       (null (atkhit p)))
+      (buki-hit-enemy p)))
   ;;(set-buki-img p)
   (when (> (atk-img p) 2)
     (set-normal-img p)
     (setf (atk-now p) nil
 	  (hammer-now p) nil
 	  (atk-c p) 0
+	  (atkhit p) nil
 	  (atk-img p) 0)))
 
 
@@ -489,7 +498,7 @@
 
 ;;オークの攻撃エフェクト追加
 (defun add-orc-atk-effect (e dx dy)
-  (let ((atk (make-instance 'player :img 0 :obj-type :orc-atk
+  (let ((atk (make-instance 'enemy :img 0 :obj-type :orc-atk
 			    :x (- (x e) dx) :y (- (y e) dy)
 			    :str (str e)
 			    :moto-w (moto-w e) :moto-h (moto-h e)
@@ -533,7 +542,7 @@
 
 ;;ヒドラの攻撃エフェクトを敵として追加
 (defun add-hydra-atk (e)
-  (let ((atk (make-instance 'player  :img 0 :obj-type :hydra-atk
+  (let ((atk (make-instance 'enemy :img 0 :obj-type :hydra-atk
 			    :x (- (x e) 32) :y (y e) :str (str e)
 			    :moto-w 32 :moto-h 32 :dir (dir e)
 			    :w 32 :h 32 :w/2 16 :h/2 16)))
@@ -577,7 +586,7 @@
 
 ;;ブリガンドのボール追加
 (defun add-bri-ball (e dx dy)
-  (let ((ball (make-instance 'player :img 0 :obj-type :briball
+  (let ((ball (make-instance 'enemy :img 0 :obj-type :briball
 			     :moto-w 20 :moto-h 20 :dir (dir e)
 			     :str (str e) :hp 1 :def 0
 			     :w 20 :h 20 :w/2 10 :h/2 10)))
@@ -611,7 +620,7 @@
 
 ;;火追加 
 (defun add-fire (e dx dy fire-n)
-  (let ((fire (make-instance 'player :img 0 :obj-type :fire
+  (let ((fire (make-instance 'enemy :img 0 :obj-type :fire
 			     :str (str e)
 			     :moto-w (moto-w e) :moto-h (moto-h e)
 			     :w (w e) :h (h e) :w/2 (w/2 e) :h/2 (h/2 e))))
@@ -886,21 +895,23 @@
 ;;アイテムの画像
 (defun item-img (item)
   (case item
-    (:boots +boots+)))
+    (:boots +boots+)
+    (:potion +potion+)))
 
 ;;アイテムの靴を落とす
 (defun enemy-drop-item (e)
   (let ((item (drop e)))
-    (if item
-	(let ((drop-item (make-instance 'obj :img (item-img item)
-					:x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
-					:moto-w 32 :moto-h 32 :obj-type item)))
-	  (push drop-item (donjon-objects *map*)))
-	(when (>= (random 5) 3)
-	  (let ((drop-item (make-instance 'obj :img +potion+ 
-					:x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
-					:moto-w 32 :moto-h 32 :obj-type :potion)))
-	    (push drop-item (donjon-objects *map*)))))))
+    (when item
+      (let ((drop-item (make-instance 'obj :img (item-img item)
+				      :x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
+				      :moto-w 32 :moto-h 32 :obj-type item)))
+	(push drop-item (donjon-objects *map*))
+	(setf (donjon-drop-item *map*) (cdr (donjon-drop-item *map*)))))))
+	;; (when (>= (random 5) 3)
+	;;   (let ((drop-item (make-instance 'obj :img +potion+ 
+	;; 				:x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
+	;; 				:moto-w 32 :moto-h 32 :obj-type :potion)))
+	;;     (push drop-item (donjon-objects *map*)))))))
 
 ;;死んだ敵の情報を消す
 (defun delete-enemies ()
