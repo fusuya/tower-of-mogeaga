@@ -1,12 +1,12 @@
 (defparameter *map100*
   #2A((30 30 30 30 30 30 30 30 30 30 30)
       (30 30 30 30 30 30 30 30 30 30 30)
-      (30 30 30 30  0  5  0 30 30 30 30)
-      (30 30 30 30  0  0  0 30 30 30 30)
-      (30 30 30 30 30  0 30 30 30 30 30)
-      (30 30 30 30 30  0 30 30 30 30 30)
-      (30 30 30 30 30  0 30 30 30 30 30)
-      (30 30 30 30 30  0 30 30 30 30 30)
+      (30 30 30  0  0  5  0 30 30 30 30)
+      (30 30 30  0  0  0  0 30 30 30 30)
+      (30 30 30  0  0  0  0 30 30 30 30)
+      (30 30 30  0  0  0  0 30 30 30 30)
+      (30 30 30  0  0  0  0 30 30 30 30)
+      (30 30 30  0  0  0  0 30 30 30 30)
       (30  3  0  0  0  0  0  0  0  6 30)
       (30 30 30 30 30  1 30 30 30 30 30)
       (30 30 30 30 30 30 30 30 30 30 30)))
@@ -128,17 +128,36 @@
 
 ;;敵の種類ランダム
 (defun random-enemy ()
-  (case (random 5)
+  (case (random 6)
     (0 :slime)
     (1 :orc)
     (2 :brigand)
     (3 :hydra)
-    (4 :dragon)))
+    (4 :dragon)
+    (5 :yote1)))
 
 ;;ドロップアイテムを返す 
 (defun drop-item-type (map)
   (car (donjon-drop-item map)))
-    
+
+(defun create-enemy (e-type e-pos hp str def ido-spd)
+  (make-instance 'enemy :x (* (car e-pos) *r-blo-w*)
+		 :y (* (cadr e-pos) *r-blo-h*)
+		 :moto-w 32 :moto-h 32
+		 :str str :def def :hp hp :maxhp hp
+		 :ido-spd ido-spd
+		 :w 40 :h 40 ::w/2 20 :h/2 20
+		 :obj-type e-type
+		 :img 1))
+
+(defun create-enemies (e-pos e-type)
+  (case e-type
+    (:slime   (create-enemy e-type e-pos 6 2 2 1))
+    (:orc     (create-enemy e-type e-pos 10 4 1 1))
+    (:brigand (create-enemy e-type e-pos 6 2 2 2))
+    (:hydra   (create-enemy e-type e-pos 12 2 5 1))
+    (:dragon (create-enemy e-type e-pos 20 5 6 2))
+    (:yote1  (create-enemy e-type e-pos 3 3 50 20))))
 
 ;;敵を配置する
 (defun set-enemies (map)
@@ -146,13 +165,8 @@
         (enemy-num (+ 3 (random 6))))
     (loop for i from 0 to enemy-num do
 	 (let* ((e-pos (nth (random len) (donjon-path map)))
-		(e (make-instance 'enemy :x (* (car e-pos) *r-blo-w*)
-				  :y (* (cadr e-pos) *r-blo-h*)
-				  :moto-w 32 :moto-h 32
-				  :str 10 :def 3
-				  :w 40 :h 40 ::w/2 20 :h/2 20
-				  :obj-type (random-enemy)
-				  :img 1)))
+		(e-type (random-enemy))
+		(e (create-enemies e-pos e-type)))
 	   (when (= i 0)
 	     (setf (drop e) (drop-item-type map)))
 	   (push e (donjon-enemies map))))))
