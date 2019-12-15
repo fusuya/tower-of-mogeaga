@@ -35,12 +35,13 @@
 (defconstant +brigand-anime+ 0)
 (defconstant +dragon-anime+ 3)
 (defconstant +hydra-anime+ 6)
-(defconstant +orc-anime+ 9)
-(defconstant +slime-anime+ 12)
-(defconstant +hydra-atk+ 15)
-(defconstant +brigand-ball+ 16)
-(defconstant +dragon-fire+ 17)
-(defconstant +orc-atk+ 18)
+(defconstant +yote-anime+ 9)
+(defconstant +orc-anime+ 12)
+(defconstant +slime-anime+ 15)
+(defconstant +hydra-atk+ 18)
+(defconstant +brigand-ball+ 19)
+(defconstant +dragon-fire+ 20)
+(defconstant +orc-atk+ 21)
 
 ;;敵の攻撃演出時間
 (defparameter *orc-atk-effect-time* 30)
@@ -160,8 +161,11 @@
 (defparameter *hogebitmap* nil)
 
 (defparameter *kabe-break* nil)
+(defparameter *HPbar-max* 40)
 
 (my-enum +boots+ +brigand+ +door+ +dragon+ +hard-block+ +hydra+ +key+ +yote1+ +orc+ +potion+ +slime+ +soft-block+ +yuka+ +yusha+)
+
+(my-enum +purple+ +red+ +green+ +blue+ +yellow+ +cyan+ +pink+ )
 
 (defclass keystate ()
   ((right :accessor right :initform nil :initarg :right)
