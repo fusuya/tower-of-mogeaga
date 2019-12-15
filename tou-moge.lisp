@@ -9,7 +9,7 @@
                               (list
                                 (create-solid-brush (encode-rgb 128 0 255))
                                 (create-solid-brush (encode-rgb 255 0 0))
-                                (create-solid-brush (encode-rgb 0 255 0))
+                                (create-solid-brush (encode-rgb 1 255 0))
                                 (create-solid-brush (encode-rgb 0 0 255))
                                 (create-solid-brush (encode-rgb 255 255 0))
                                 (create-solid-brush (encode-rgb 0 255 255))
@@ -164,12 +164,12 @@
 (defmethod damage-calc ((atker player) defender)
   (with-slots (buki) atker
     (let* ((a1 (+ (str atker) (atk buki))))
-      (floor (* (- a1 (/ (def defender) 2)) (/ (+ 99 (random 55)) 256))))))
+      (max 1 (floor (* (- a1 (/ (def defender) 2)) (/ (+ 99 (random 55)) 256)))))))
 
 ;;ダメージ計算
 (defmethod damage-calc ((atker enemy) defender)
   (let* ((a1 (str atker)))
-    (floor (* (- a1 (/ (def defender) 2)) (/ (+ 99 (random 55)) 256)))))
+    (max 1 (floor (* (- a1 (/ (def defender) 2)) (/ (+ 99 (random 55)) 256))))))
 
 
 ;;ダメージ計算して　表示する位置とか設定
@@ -194,7 +194,7 @@
   (with-slots (buki) p
     (loop for e in (donjon-enemies *map*)
        do (case (obj-type e)
-	    ((:slime :orc :hydra :dragon :brigand :briball)
+	    ((:slime :orc :hydra :dragon :brigand :briball :yote1)
 	     (when (and (obj-hit-p buki e)
 			(null (dead e)))
 	       (setf (atkhit p) t) ;;攻撃があたりました
@@ -420,22 +420,60 @@
 (defun update-slime-pos (e)
   (case (dir e)
     (:stop )
-    (:up    (decf (y e))
+    (:up    (decf (y e) (ido-spd e))
 	    (when (block-hit-p e)
-	      (incf (y e))
+	      (incf (y e) (ido-spd e))
 	      (set-rand-dir e)))
-    (:down  (incf (y e))
+    (:down  (incf (y e) (ido-spd e))
 	    (when (block-hit-p e)
-	      (decf (y e))
+	      (decf (y e) (ido-spd e))
 	      (set-rand-dir e)))
-    (:right (incf (x e))
+    (:right (incf (x e) (ido-spd e))
 	    (when (block-hit-p e)
-	      (decf (x e))
+	      (decf (x e) (ido-spd e))
 	      (set-rand-dir e)))
-    (:left  (decf (x e))
+    (:left  (decf (x e) (ido-spd e))
 	    (when (block-hit-p e)
-	      (incf (x e))
+	      (incf (x e) (ido-spd e))
 	      (set-rand-dir e)))))
+
+;;メタル予定地の移動 使わない
+(defun update-yote1-pos (e)
+  (case (dir e)
+    (:stop )
+    (:up    (decf (y e) (ido-spd e))
+	    (let ((kabe  (block-hit-p e)))
+	      (when kabe
+		(if (eq (obj-type kabe) :soft-block)
+		    (setf (obj-type kabe) :yuka
+			  (img kabe) +yuka+)
+		    (progn (setf (y e) (+ (y kabe) (h kabe)))
+			   (set-rand-dir e))))))
+    (:down  (incf (y e) (ido-spd e))
+	    (let ((kabe  (block-hit-p e)))
+	      (when kabe
+		(if (eq (obj-type kabe) :soft-block)
+		    (setf (obj-type kabe) :yuka
+			  (img kabe) +yuka+)
+		    (progn (setf (y e) (- (y kabe) (h e)))
+			   (set-rand-dir e))))))
+    (:right (incf (x e) (ido-spd e))
+	    (let ((kabe  (block-hit-p e)))
+	      (when kabe
+		(if (eq (obj-type kabe) :soft-block)
+		    (setf (obj-type kabe) :yuka
+			  (img kabe) +yuka+)
+		    (progn (setf (x e) (- (x kabe) (w e)))
+			   (set-rand-dir e))))))
+    (:left  (decf (x e) (ido-spd e))
+	    (let ((kabe  (block-hit-p e)))
+	      (when kabe
+		(if (eq (obj-type kabe) :soft-block)
+		    (setf (obj-type kabe) :yuka
+			  (img kabe) +yuka+)
+		    (progn (setf (x e) (+ (x kabe) (w kabe)))
+			   (set-rand-dir e))))))))
+    
 
 
 
@@ -486,11 +524,11 @@
       (setf walk-c 0))))
 
 ;;スライムの行動
-(defun update-slime (e)
+(defun update-slime (e change-dir-time)
   (incf (dir-c e)) ;;移動カウンター更新
   (incf (walk-c e))
   (update-enemy-anime-img e)
-  (if (> (dir-c e) 40)
+  (if (> (dir-c e) change-dir-time)
       (progn (set-rand-dir e)
 	     (setf (dir-c e) 0))
       (update-slime-pos e)))
@@ -588,7 +626,7 @@
 (defun add-bri-ball (e dx dy)
   (let ((ball (make-instance 'enemy :img 0 :obj-type :briball
 			     :moto-w 20 :moto-h 20 :dir (dir e)
-			     :str (str e) :hp 1 :def 0
+			     :str (str e) :maxhp 1 :hp 1 :def 0
 			     :w 20 :h 20 :w/2 10 :h/2 10)))
     (setf (x ball) (- (x e) dx)
 	  (y ball) (- (y e) dy))
@@ -697,7 +735,7 @@
   (loop for e in (donjon-enemies *map*)
      do (when (null (dead e))
 	  (case (obj-type e)
-	    (:slime   (update-slime e))
+	    (:slime   (update-slime e 40))
 	    (:dragon  (update-dragon e))
 	    (:brigand (update-brigand e))
 	    (:hydra   (update-hydra e))
@@ -705,6 +743,7 @@
 	    (:fire    (update-fire e))
 	    (:briball (update-briball e))
 	    (:orc     (update-orc e))
+	    (:yote1   (update-slime e 10))
 	    (:orc-atk (update-orc-atk-effect e))))))
 
 
@@ -737,6 +776,7 @@
 	  (:brigand (render-enemy e +brigand-anime+))
 	  (:fire  (render-enemy e +dragon-fire+))
 	  (:briball (render-enemy e +brigand-ball+))
+	  (:yote1 (render-enemy e +yote-anime+))
 	  (:orc   (render-enemy e +orc-anime+))
 	  (:orc-atk (render-enemy e +orc-atk+)))))
 
@@ -829,8 +869,18 @@
   (render-item))
 
 
+;;HPバー表示
+(defun render-hpbar (e)
+  (let* ((len (floor (* (/ (hp e) (maxhp e)) *hpbar-max*)))
+	 (hp-w (+ (x e) len)))
+    ;;残りHP
+    (select-object *hmemdc* (aref *brush* +green+))
+    (rectangle *hmemdc* (x e) (- (y e) 15) hp-w (y e))
+    ;;減ったHP
+    (select-object *hmemdc* (aref *brush* +red+))
+    (rectangle *hmemdc* hp-w (- (y e) 15) (+ hp-w (- *hpbar-max* len)) (y e))))
 
-;;
+;;ダメージ表示
 (defun render-damage (e color)
   (with-slots (dmg) e
     (when dmg
@@ -848,11 +898,15 @@
       (text-out *hmemdc* (format nil "~d" (dmg-num dmg)) (x dmg) (y dmg))
       )))
 
-;;ダメージ表示
+;;全てのダメージ表示
 (defun render-all-damage ()
   (render-damage *p*  (encode-rgb 255 147 122))
+  ;;(render-hpbar *p*)
   (loop for e in (donjon-enemies *map*)
-     do (render-damage e  (encode-rgb 255 255 255))))
+     do (render-damage e  (encode-rgb 255 255 255))
+       (when (and (/= (maxhp e) (hp e))
+		  (null (dead e)))
+	 (render-hpbar e))))
 
 ;;ゲーム全体描画
 (defun render-game (hdc)
