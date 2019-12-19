@@ -1,7 +1,6 @@
 ;;TODO  アイテムの種類を増やす
 ;;ボス
 ;;プレイヤーのレベルアップ
-;;階層ごとに敵のレベルカエル
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -437,42 +436,30 @@
 	      (incf (x e) (ido-spd e))
 	      (set-rand-dir e)))))
 
-;;メタル予定地の移動 使わない
-(defun update-yote1-pos (e)
+;;敵の移動
+(defun update-enemy-pos (e)
   (case (dir e)
     (:stop )
     (:up    (decf (y e) (ido-spd e))
 	    (let ((kabe  (block-hit-p e)))
 	      (when kabe
-		(if (eq (obj-type kabe) :soft-block)
-		    (setf (obj-type kabe) :yuka
-			  (img kabe) +yuka+)
-		    (progn (setf (y e) (+ (y kabe) (h kabe)))
-			   (set-rand-dir e))))))
+		(setf (y e) (+ (y kabe) (h kabe)))
+		(set-rand-dir e))))
     (:down  (incf (y e) (ido-spd e))
 	    (let ((kabe  (block-hit-p e)))
 	      (when kabe
-		(if (eq (obj-type kabe) :soft-block)
-		    (setf (obj-type kabe) :yuka
-			  (img kabe) +yuka+)
-		    (progn (setf (y e) (- (y kabe) (h e)))
-			   (set-rand-dir e))))))
+		(setf (y e) (- (y kabe) (h e)))
+		(set-rand-dir e))))
     (:right (incf (x e) (ido-spd e))
 	    (let ((kabe  (block-hit-p e)))
 	      (when kabe
-		(if (eq (obj-type kabe) :soft-block)
-		    (setf (obj-type kabe) :yuka
-			  (img kabe) +yuka+)
-		    (progn (setf (x e) (- (x kabe) (w e)))
-			   (set-rand-dir e))))))
+		(setf (x e) (- (x kabe) (w e)))
+		(set-rand-dir e))))
     (:left  (decf (x e) (ido-spd e))
 	    (let ((kabe  (block-hit-p e)))
 	      (when kabe
-		(if (eq (obj-type kabe) :soft-block)
-		    (setf (obj-type kabe) :yuka
-			  (img kabe) +yuka+)
-		    (progn (setf (x e) (+ (x kabe) (w kabe)))
-			   (set-rand-dir e))))))))
+		(setf (x e) (+ (x kabe) (w kabe)))
+		(set-rand-dir e))))))
     
 
 
@@ -531,7 +518,7 @@
   (if (> (dir-c e) change-dir-time)
       (progn (set-rand-dir e)
 	     (setf (dir-c e) 0))
-      (update-slime-pos e)))
+      (update-enemy-pos e)))
 
 
 ;;オークの攻撃エフェクト追加
@@ -575,7 +562,7 @@
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
-	 (update-slime-pos e)))))
+	 (update-enemy-pos e)))))
 
 
 ;;ヒドラの攻撃エフェクトを敵として追加
@@ -620,7 +607,7 @@
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
-	 (update-slime-pos e)))))
+	 (update-enemy-pos e)))))
 
 ;;ブリガンドのボール追加
 (defun add-bri-ball (e dx dy)
@@ -654,7 +641,7 @@
   (if (> (dir-c e) 40)
       (progn (set-rand-dir e)
 	     (setf (dir-c e) 0))
-      (update-slime-pos e)))
+      (update-enemy-pos e)))
 
 ;;火追加 
 (defun add-fire (e dx dy fire-n)
@@ -703,7 +690,7 @@
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
-	 (update-slime-pos e)))))
+	 (update-enemy-pos e)))))
 
 ;;火の更新
 (defun update-fire (e)
