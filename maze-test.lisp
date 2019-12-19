@@ -19,6 +19,7 @@
 	(donjon-map map) nil
 	(donjon-objects map) nil
 	(donjon-path map) nil
+	(donjon-yuka map) nil
 	(donjon-stop-list map) nil))
 
 ;;マップを壁で埋める
@@ -126,15 +127,38 @@
 	  (aref (donjon-map map) (car key) (cadr key)) 3)))
 
 
-;;敵の種類ランダム
+;;出現する敵 階層によって出現率を変える
+(defun appear-enemy ()
+  (let* ((m (random 101))
+	 (slime-rate-max (- 70 (* (stage *p*) 3)))
+	 (orc-rate-min   (1+ slime-rate-max))
+	 (orc-rate-max   (+ (- 30 (stage *p*)) orc-rate-min))
+	 (bri-rate-min (1+ orc-rate-max))
+	 (bri-rate-max (+ 10 (stage *p*) bri-rate-min))
+	 (hydra-rate-min (1+ bri-rate-max))
+	 (hydra-rate-max (+ 10 (stage *p*) hydra-rate-min))
+	 (dragon-rate-min (1+ hydra-rate-max))
+	 (dragon-rate-max (+ 10 (stage *p*) dragon-rate-min)))
+    ;;(format t "slime:~d~%orc~d~%bri:~d~%hydra:~d~%dragon:~d~%"
+	;;    slime-rate-max orc-rate-max bri-rate-max hydra-rate-max dragon-rate-max)
+    (cond
+      ((>= 1 m 0) :yote1)
+      ((>= slime-rate-max m 2) :slime)
+      ((>= orc-rate-max m orc-rate-min) :orc)
+      ((>= bri-rate-max m bri-rate-min) :brigand)
+      ((>= hydra-rate-max m hydra-rate-min) :hydra)
+      ((>= dragon-rate-max m dragon-rate-min) :dragon)
+      (t :slime))))
+
+;;
 (defun random-enemy ()
   (case (random 6)
-    (0 :slime)
-    (1 :orc)
-    (2 :brigand)
-    (3 :hydra)
-    (4 :dragon)
-    (5 :yote1)))
+    (1 :slime)
+    (2 :orc)
+    (3 :brigand)
+    (4 :hydra)
+    (5 :dragon)
+    (0 :yote1)))
 
 ;;ドロップアイテムを返す 
 (defun drop-item-type (map)
@@ -156,20 +180,21 @@
     (:orc     (create-enemy e-type e-pos 10 4 1 1))
     (:brigand (create-enemy e-type e-pos 6 2 2 2))
     (:hydra   (create-enemy e-type e-pos 12 2 5 1))
-    (:dragon (create-enemy e-type e-pos 20 5 6 2))
-    (:yote1  (create-enemy e-type e-pos 3 3 50 20))))
+    (:dragon  (create-enemy e-type e-pos 20 5 6 2))
+    (:yote1   (create-enemy e-type e-pos 3 3 50 20))))
 
 ;;敵を配置する
 (defun set-enemies (map)
-  (let ((len (length (donjon-path map)))
-        (enemy-num (+ 3 (random 6))))
+  (let ((enemy-num (+ 3 (random (+ 3 (floor (stage *p*) 5)))))) ;;1フロアに出る敵の数
     (loop for i from 0 to enemy-num do
-	 (let* ((e-pos (nth (random len) (donjon-path map)))
-		(e-type (random-enemy))
+	 (let* ((e-pos (nth (random (length (donjon-path map))) (donjon-path map)))
+		(e-type (appear-enemy))
 		(e (create-enemies e-pos e-type)))
 	   (when (= i 0)
 	     (setf (drop e) (drop-item-type map)))
-	   (push e (donjon-enemies map))))))
+	   (push e (donjon-enemies map))
+	   (setf (donjon-path *map*)
+		 (remove e-pos (donjon-path *map*) :test #'equal))))))
 
 ;;マップ設定
 (defun set-map (map moto)
@@ -234,7 +259,7 @@
 		   (push obj (donjon-objects map)))))))))
 		  
 
-	    
+;;迷路マップ生成
 (defun maze (map p)
   (let* ((x 0)
          (startx 0)
@@ -267,10 +292,7 @@
        ;;パーティーの位置に敵を配置しないようにする
        (setf (donjon-path map) (remove (list (x p) (y p)) (donjon-path map) :test #'equal))
        (set-enemies map) ;;敵を配置
-       (cond
-        ((= (tower-lv p) 50)
-         (set-key-door map))
-        (t (set-key-door map)))))
+       (set-key-door map))) ;;鍵とドアを配置
     (set-obj-info map)))
           ;;(d-map-map mapn)))
           ;;(test-show-map (d-map-map mapn))))
