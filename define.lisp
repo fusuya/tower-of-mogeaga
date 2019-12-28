@@ -60,6 +60,7 @@
 
 (defparameter *font140* nil)
 (defparameter *font40* nil)
+(defparameter *font30* nil)
 (defparameter *font20* nil)
 
 
@@ -88,7 +89,8 @@
 
 
 ;;拡大
-(defparameter *kakudai* 1.3)
+(Defparameter *mag-w* 1)
+(Defparameter *mag-h* 1)
 
 ;;基本サイズ 元の画像サイズ
 (defparameter *obj-w* 32)
@@ -99,26 +101,22 @@
 (defparameter *blo-w* 32)
 (defparameter *blo-h* 32)
 ;;表示するブロック画像のサイズ
-(defparameter *r-blo-w* 46)
-(defparameter *r-blo-h* 46)
+(defparameter *blo-w46* 42)
+(defparameter *blo-h46* 42)
 
 ;;元の上下向きプレイヤー画像のサイズ
 (defparameter *tate-w* 32)
 (defparameter *tate-h* 32)
 ;;表示する上下向きプレイヤー画像サイズ
-(defparameter *r-tate-w* 40)
-(defparameter *r-tate-h* 40)
-(defparameter *r-tate-w/2* (floor *r-tate-w* 2))
-(defparameter *r-tate-h/2* (floor *r-tate-h* 2))
+(defparameter *tate-w/2* (floor *tate-w* 2))
+(defparameter *tate-h/2* (floor *tate-h* 2))
 
 ;;元の横向きのプレイヤー画像のサイズ
 (defparameter *yoko-w* 24)
 (defparameter *yoko-h* 32)
 ;;表示する横向きプレイヤー画像サイズ
-(defparameter *r-yoko-w* 32)
-(defparameter *r-yoko-h* 40)
-(defparameter *r-yoko-w/2* (floor *r-yoko-w* 2))
-(defparameter *r-yoko-h/2* (floor *r-yoko-h* 2))
+(defparameter *yoko-w/2* (floor *yoko-w* 2))
+(defparameter *yoko-h/2* (floor *yoko-h* 2))
 
 
 (defparameter *w/2* (floor *obj-w* 2))
@@ -135,12 +133,20 @@
 (defparameter *yoko-block-num* 21)
 (defparameter *tate-block-num* 13)
 
-;;マップ領域
-(defparameter *map-w* (* *yoko-block-num* *r-blo-w*))
-(defparameter *map-h* (* *tate-block-num* *r-blo-h*))
+;;ゲームマップ領域
+(defparameter *map-w* (* *yoko-block-num* *blo-w46*))
+(defparameter *map-h* (* *tate-block-num* *blo-h46*))
+;;プレイヤーのステータス表示用領域サイズ
+(defparameter *status-w* 160)
+(defparameter *status-h* 210)
 
-(defparameter *screen-w* 960)
-(defparameter *screen-h* 720)
+
+(defparameter *screen-w* (+ *map-w* *status-w*))
+(defparameter *screen-h* (+ *map-h* *status-h*))
+
+(defparameter *change-screen-w* *screen-w*)
+(defparameter *change-screen-h* *screen-h*)
+
 (defparameter *waku-size* 10) ;;ゲームフィールドの周りの枠太さ
 (defparameter *c-rect* nil) ;;クライアント領域
 (defparameter *p* nil)
@@ -148,7 +154,8 @@
 
 ;;画面領域
 (defparameter *client-w* (+ *map-w* 150))
-(defparameter *client-h* (* *r-tate-h* *tate*))
+(defparameter *client-h* (* *blo-h46* *tate*))
+
 (defparameter *screen-center-x* nil)
 
 (defparameter *brush* nil)
@@ -163,7 +170,7 @@
 (defparameter *kabe-break* nil)
 (defparameter *HPbar-max* 40)
 
-(my-enum +boots+ +brigand+ +door+ +dragon+ +hard-block+ +hydra+ +key+ +yote1+ +orc+ +potion+ +slime+ +soft-block+ +yuka+ +yusha+)
+(my-enum +boots+ +brigand+ +door+ +dragon+ +hammer+ +hard-block+ +hydra+ +key+ +yote1+ +orc+ +potion+ +slime+ +soft-block+ +yuka+ +yusha+)
 
 (my-enum +purple+ +red+ +green+ +blue+ +yellow+ +cyan+ +pink+ )
 
