@@ -17,11 +17,13 @@
 (defun set-font ()
   (setf *font140* (create-font "MSゴシック" :height 140)
         *font40* (create-font "MSゴシック" :height 40)
+	*font30* (create-font "MSゴシック" :height 32)
         *font20* (create-font "MSゴシック" :height 25 :width 12 :weight (const +fw-bold+))))
 
 (defun delete-font ()
   (delete-object *font140*)
   (delete-object *font40*)
+  (delete-object *font30*)
   (delete-object *font20*))
 
 (defun delete-object-array (arr)
@@ -48,6 +50,10 @@
 ;;ゲーム初期化
 (defun init-game ()
   (setf *battle?* nil
+	*screen-w* (+ *map-w* *status-w*)
+	*screen-h* (+ *map-h* *status-h*)
+	*mag-w* 1
+	*mag-h* 1
         *ido?* t
         *monster-num* 6
         *monster-level* 1
@@ -56,9 +62,9 @@
         *start-time* (get-internal-real-time)
         *ha2ne2* nil
         *copy-buki* (copy-tree *buki-d*)
-        *p* (make-instance 'player :w *r-tate-w* :h *r-tate-h* :str 10 :def 10
-			   :moto-w *tate-w* :moto-h *tate-h* :atk-now nil :ido-spd 2
-			   :w/2 (floor *r-tate-w* 2) :h/2 (floor *r-tate-h* 2)
+        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 10 :def 10
+			   :moto-w *obj-w* :moto-h *obj-h* :atk-now nil :ido-spd 2
+			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
 			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 5))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
   (maze *map* *p*))
@@ -190,14 +196,15 @@
 
 ;;敵と武器の当たり判定
 (defun buki-hit-enemy (p)
-  (with-slots (buki) p
-    (loop for e in (donjon-enemies *map*)
-       do (case (obj-type e)
-	    ((:slime :orc :hydra :dragon :brigand :briball :yote1)
-	     (when (and (obj-hit-p buki e)
-			(null (dead e)))
-	       (setf (atkhit p) t) ;;攻撃があたりました
-	       (set-damage p e))))))) ;;ダメージ処理
+  (when (atk-now p)
+    (with-slots (buki) p
+      (loop for e in (donjon-enemies *map*)
+	 do (case (obj-type e)
+	      ((:slime :orc :hydra :dragon :brigand :briball :yote1)
+	       (when (and (obj-hit-p buki e)
+			  (null (dead e)))
+		 (setf (atkhit p) t) ;;攻撃があたりました
+		 (set-damage p e)))))))) ;;ダメージ処理
 	    ;; (when (>= 0 (hp e))
 	    ;;   (setf (donjon-enemies *map*)
 	    ;; 	    (remove e (donjon-enemies *map*) :test #'equal))))
@@ -209,20 +216,20 @@
 (defun set-normal-img (p)
   (case (dir p)
     (:down  (setf (img p) +down+
-		  (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
-		  (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
+		  (w p) *tate-w* (w/2 p) *tate-w/2*
+		  (h p) *tate-h* (h/2 p) *tate-h/2*
 		  (moto-w p) *tate-w* (moto-h p) *tate-h*))
     (:up    (setf (img p) +up+
-		  (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
-		  (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
+		  (w p) *tate-w* (w/2 p) *tate-w/2*
+		  (h p) *tate-h* (h/2 p) *tate-h/2*
 		  (moto-w p) *tate-w* (moto-h p) *tate-h*))
     (:left  (setf (img p) +left+
-		  (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
-		  (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
+		  (w p) *yoko-w* (w/2 p) *yoko-w/2*
+		  (h p) *yoko-h* (h/2 p) *yoko-h/2*
 		  (moto-w p) *yoko-w* (moto-h p) *yoko-h*))
     (:right (setf (img p) +right+
-		  (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
-		  (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
+		  (w p) *yoko-w* (w/2 p) *yoko-w/2*
+		  (h p) *yoko-h* (h/2 p) *yoko-h/2*
 		  (moto-w p) *yoko-w* (moto-h p) *yoko-h*))))
 
 
@@ -231,24 +238,24 @@
   (with-slots (buki x y dir) p
     (case dir
       (:down  (setf (moto-w buki) 32 (moto-h buki) 24
-		    (w buki) 40 (h buki) 32
-		    (w/2 buki) 20 (h/2 buki) 16
+		    (w buki) 32 (h buki) 34
+		    (w/2 buki) 16 (h/2 buki) 17
 		    (x buki) x
-		    (y buki) (+ y 22)))
+		    (y buki) (+ y 20)))
       (:up    (setf (moto-w buki) 32 (moto-h buki) 28
-		    (w buki) 40 (h buki) 36
-		    (w/2 buki) 20 (h/2 buki) 18
+		    (w buki) 32 (h buki) 34
+		    (w/2 buki) 16 (h/2 buki) 17
 		    (x buki) x
 		    (y buki) (- y 16)))
       (:left  (setf (moto-w buki) 18 (moto-h buki) 32
-		    (w buki) 26 (h buki) 40
-		    (w/2 buki) 13 (h/2 buki) 20
-		    (x buki) (- x 14)
+		    (w buki) 24 (h buki) 32
+		    (w/2 buki) 12 (h/2 buki) 16
+		    (x buki) (- x 18)
 		    (y buki) y))
       (:right (setf (moto-w buki) 18 (moto-h buki) 32
-		    (w buki) 26 (h buki) 40
-		    (w/2 buki) 13 (h/2 buki) 20
-		    (x buki) (+ x 21)
+		    (w buki) 24 (h buki) 32
+		    (w/2 buki) 12 (h/2 buki) 16
+		    (x buki) (+ x 18)
 		    (y buki) y)))))
 
 ;;方向　キャラの攻撃画像
@@ -311,31 +318,22 @@
        (hammer-hit-kabe p))
       (left
        (when (null shift)
-	 (setf (img p) +left+
-	       (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
-	       (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
-	       (moto-w p) *yoko-w*
-	       (dir p) :left))
+	 (setf (dir p) :left)
+	 (set-normal-img p))
        (decf (x p) (ido-spd p))
        (when (block-hit-p p)
 	 (incf (x p) (ido-spd p))))
       (right
        (when (null shift)
-	 (setf (img p) +right+
-	       (w p) *r-yoko-w* (w/2 p) *r-yoko-w/2*
-	       (h p) *r-yoko-h* (h/2 p) *r-yoko-h/2*
-	       (moto-w p) *yoko-w*
-	       (dir p) :right))
+	 (setf (dir p) :right)
+	 (set-normal-img p))
        (incf (x p) (ido-spd p))
        (when (block-hit-p p)
 	 (decf (x p) (ido-spd p))))
       (up
        (when (null shift)
-	 (setf (img p) +up+
-	       (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
-	       (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
-	       (moto-w p) *tate-w*
-	       (dir p) :up))
+	 (setf (dir p) :up)
+	 (set-normal-img p))
        (decf (y p) (ido-spd p))
        (let ((blo  (block-hit-p p)))
 	 (when blo
@@ -343,11 +341,8 @@
 	   (merikomi-hantei p))))
       (down
        (when (null shift)
-	 (setf (img p) +down+
-	       (w p) *r-tate-w* (w/2 p) *r-tate-w/2*
-	       (h p) *r-tate-h* (h/2 p) *r-tate-h/2*
-	       (moto-w p) *tate-w*
-	       (dir p) :down))
+	 (setf (dir p) :down)
+	 (set-normal-img p))
        (incf (y p) (ido-spd p))
        (let ((blo  (block-hit-p p)))
 	 (when blo
@@ -791,62 +786,63 @@
   (when (hammer-now *p*)
     (render-bukiorhammer *hammer-imgs*))
   (select-object *hogememdc* (aref *p-imgs* (img *p*)))
-  (transparent-blt *hmemdc* (x *p*) (y *p*) *hogememdc* 0 0
-		   :width-source (moto-w *p*) :height-source (moto-h *p*)
-		   :width-dest (w *p*) :height-dest (h *p*)
-		   :transparent-color (encode-rgb 0 255 0)))
+  (trans-blt (x *p*) (y *p*) (moto-w *p*) (moto-h *p*)
+	     (w *p*) (h *p*)))
 
 ;;ブロック描画
 (defun render-block ()
   (loop for obj in (donjon-blocks *map*)
      do
        (select-object *hogememdc* (aref *images* (img obj)))
-       (transparent-blt *hmemdc* (x obj) (y obj) *hogememdc* 0 0 :width-source *obj-w*
-			:height-source *obj-h*
-			:width-dest (w obj) :height-dest (h obj)
-			:transparent-color (encode-rgb 0 255 0))))
+       (trans-blt (x obj) (y obj) (moto-w obj) (moto-h obj)
+		  (w obj) (h obj))))
+       ;; (trans-blt (floor (* (x obj) *mag-w*)) (floor (* (y obj) *mag-h*))
+       ;; 		  (moto-w obj) (moto-h obj)
+       ;; 		  (floor (* (w obj) *mag-w*)) (floor (* (h obj) *mag-h*)))))
 
 ;;床描画
 (defun render-yuka ()
   (loop for obj in (donjon-yuka *map*)
      do
        (select-object *hogememdc* (aref *images* (img obj)))
-       (trans-blt (x obj) (y obj) *obj-w* *obj-h* (w obj) (h obj))))
+       (trans-blt (x obj) (y obj) (moto-w obj) (moto-h obj)
+		  (w obj) (h obj))))
 
 ;;鍵とか描画
 (defun render-item ()
   (loop for obj in (donjon-objects *map*)
      do
        (select-object *hogememdc* (aref *images* (img obj)))
-       (trans-blt (x obj) (y obj) *obj-w* *obj-h* (w obj) (h obj))))
+       (trans-blt (x obj) (y obj) (moto-w obj) (moto-h obj)
+		  (w obj) (h obj))))
 
 ;;プレイヤーのステータス表示
 (defun render-p-status ()
-  (select-object *hmemdc* *font40*)
+  (select-object *hmemdc* *font30*)
   (set-text-color *hmemdc* (encode-rgb 255 255 255))
   (set-bk-mode *hmemdc* :transparent)
   (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) 10)
   (text-out *hmemdc* (format nil "Lv:~2d" (level *p*)) (+ *map-w* 10) 50)
   (text-out *hmemdc* (format nil "HP:~2d" (hp *p*)) (+ *map-w* 10) 90)
-  ;;(text-out *hmemdc* (format nil "x:~2d" (x *p*)) (+ *map-w* 10) 130)
-  ;;(text-out *hmemdc* (format nil "y:~2d" (y *p*)) (+ *map-w* 10) 170)
   (text-out *hmemdc* (format nil "ハンマー") (+ *map-w* 10) 170)
   (text-out *hmemdc* (format nil "残り:~d回" (hammer *p*)) (+ *map-w* 10) 210)
-  (text-out *hmemdc* (format nil "モゲアーガの塔 ~2,'0d階" (stage *p*)) 10 600)
-  (text-out *hmemdc* (format nil "持ち物") 10 640)
+  (text-out *hmemdc* (format nil "w:~2d" *change-screen-w*) (+ *map-w* 10) 250)
+  (text-out *hmemdc* (format nil "h:~2d" *change-screen-h*) (+ *map-w* 10) 290)
+  (text-out *hmemdc* (format nil "モゲアーガの塔 ~2,'0d階" (stage *p*)) 10 (+ *map-h* 10))
+  (text-out *hmemdc* (format nil "持ち物") 10 (+ *map-h* 40))
   (loop for item in (item *p*)
      for i from 0 do
        (select-object *hogememdc* (aref *images* (img item)))
-       (trans-blt (+ 10 (* i 36)) 680 32 32 32 32))
+       (trans-blt (+ 10 (* i 36)) (+ *map-h* 80) 32 32 32 32))
   (when (key? *p*)
     (select-object *hogememdc* (aref *images* +key+))
-    (trans-blt 10 720 *obj-w* *obj-h* *r-blo-w* *r-blo-h*)))
+    (trans-blt 10 (+ *map-h* 120) *obj-w* *obj-h* *obj-w* *obj-h*)))
 
 
 ;;バックグラウンド
 (defun render-background ()
   (select-object *hmemdc* (get-stock-object :black-brush))
-  (rectangle *hmemdc* 0 0 (rect-right *c-rect*) (rect-bottom *c-rect*)))
+  (rectangle *hmemdc* 0 0 *change-screen-w* *change-screen-h*))
 
 ;;マップを表示
 (defun render-map ()
@@ -903,8 +899,8 @@
   (render-enemies)
   (render-all-damage)
   (transparent-blt hdc 0 0 *hmemdc* 0 0
-          :width-dest (rect-right *c-rect*) :height-dest (rect-bottom *c-rect*)
-          :width-source (rect-right *c-rect*) :height-source (rect-bottom *c-rect*)
+          :width-dest *change-screen-w* :height-dest *change-screen-h*
+          :width-source (rect-right *c-rect*) :height-source (rect-bottom *c-rect*) 
           :transparent-color (encode-rgb 0 255 0)))
 
 ;;ダメージフォントの位置更新
@@ -937,7 +933,8 @@
 (defun item-img (item)
   (case item
     (:boots +boots+)
-    (:potion +potion+)))
+    (:potion +potion+)
+    (:hammer1 +hammer+)))
 
 ;;アイテムの靴を落とす
 (defun enemy-drop-item (e)
@@ -971,8 +968,37 @@
   (delete-enemies)
   (invalidate-rect hwnd nil nil))
 
-;;win32api
-;;".\\images\\*.*" ロードした画像の配列を作る
+;;ウィンドウサイズ変更時に画像拡大縮小する
+(defun change-screen-size (lp hwnd)
+  (let* ((change-w (loword lp))
+	 (change-h (hiword lp)))
+    (setf *change-screen-w* change-w
+	  *change-screen-h* change-h
+	  *mag-w* (/ change-w *screen-w*)
+	  *mag-h* (/ change-h *screen-h*))))
+    ;; (delete-object *hmemdc*)
+    ;; (delete-object *hbitmap*)
+    ;; (delete-object *hogememdc*)
+    ;; (delete-object *hogebitmap*)
+    ;; (with-dc (hdc hwnd)
+    ;;    (setf *hmemdc* (create-compatible-dc hdc)
+    ;;          *hbitmap* (create-compatible-bitmap hdc *change-screen-w* *change-screen-h*)
+    ;; 	     *hogememdc* (create-compatible-dc hdc)
+    ;;          *hogebitmap* (create-compatible-bitmap hdc *change-screen-w* *change-screen-h*))
+    ;;    (select-object *hmemdc* *hbitmap*)
+    ;;    (select-object *hogememdc* *hogebitmap*))))
+
+(defun remake-obj ()
+  (loop for blo in (donjon-yuka *map*)
+     do (setf (x blo) (floor (* (x blo) *mag-w*))
+	      (y blo) (floor (* (y blo) *mag-h*))
+	      (w blo) (floor (* (w blo) *mag-w*))
+	      (h blo) (floor (* (h blo) *mag-h*))))
+  (loop for blo in (donjon-blocks *map*)
+     do (setf (x blo) (floor (* (x blo) *mag-w*))
+	      (y blo) (floor (* (y blo) *mag-h*))
+	      (w blo) (floor (* (w blo) *mag-w*))
+	      (h blo) (floor (* (h blo) *mag-h*)))))
 
 
 ;;クライアント領域を*client-w* *client-h*に設定
@@ -993,22 +1019,27 @@
      (set-font)
      (load-images)
      (init-game)
-     (set-client-size hwnd)
+     ;;(set-client-size hwnd)
      (setf *c-rect* (get-client-rect hwnd))
-     (setf *screen-center-x* (+ (rect-right *c-rect*)
-                              (floor (- (rect-left *c-rect*) (rect-right *c-rect*)) 2)))
+     ;;(setf *screen-w* (rect-right *c-rect*)
+	;;   *screen-h* (rect-bottom *c-rect*))
+     ;;(setf *screen-center-x* (+ (rect-right *c-rect*)
+     ;;                         (floor (- (rect-left *c-rect*) (rect-right *c-rect*)) 2)))
 
-     (set-layered-window-attributes hwnd (encode-rgb 0 255 0) 0 (const +lwa-colorkey+))
+     ;;(set-layered-window-attributes hwnd (encode-rgb 255 0 0) 0 (const +lwa-colorkey+))
      (with-dc (hdc hwnd)
        (setf *hmemdc* (create-compatible-dc hdc)
              *hbitmap* (create-compatible-bitmap hdc (rect-right *c-rect*) (rect-bottom *c-rect*))
-        *hogememdc* (create-compatible-dc hdc)
+	     *hogememdc* (create-compatible-dc hdc)
              *hogebitmap* (create-compatible-bitmap hdc (rect-right *c-rect*) (rect-bottom *c-rect*)))
        (select-object *hmemdc* *hbitmap*)
        (select-object *hogememdc* *hogebitmap*)))
     ((const +wm-paint+)
      (with-paint (hwnd hdc)
        (render-game hdc)))
+    ((const +wm-size+)
+     (change-screen-size lparam hwnd))
+     ;;(remake-obj))
     ((const +wm-close+)
      (destroy-window hwnd))
     ;;((const +wm-timer+)
@@ -1033,16 +1064,17 @@
 (defun moge ()
   (setf *random-state* (make-random-state t))
   (register-class "MOGE" (callback moge-wndproc)
+		  :styles (logior-consts +cs-hredraw+ +cs-vredraw+)
                   :cursor (load-cursor :arrow)
                   :background (create-solid-brush (encode-rgb 0 255 0)))
   (let ((hwnd (create-window "MOGE"
                              :window-name "もげぞうの塔"
-                             :ex-styles  (logior-consts +WS-EX-LAYERED+ +ws-ex-composited+) ;;透明
+                             ;;:ex-styles  (logior-consts +WS-EX-LAYERED+ +ws-ex-composited+) ;;透明
                              :styles (logior-consts +ws-overlappedwindow+ +ws-visible+)
-                             :x 400 :y 100 :width 960 :height 720))
+                             :x 400 :y 100 :width *screen-w* :height *screen-h*))
         (msg (make-msg)))
     ;;(init-game)
-    (show-window hwnd)
+    (show-window hwnd) 
     (update-window hwnd)
     (do ((done nil))
         (done)
