@@ -165,12 +165,13 @@
   (car (donjon-drop-item map)))
 
 (defun create-enemy (e-type e-pos hp str def ido-spd)
-  (make-instance 'enemy :x (* (car e-pos) *r-blo-w*)
-		 :y (* (cadr e-pos) *r-blo-h*)
-		 :moto-w 32 :moto-h 32
+  (make-instance 'enemy :x (* (car e-pos) *blo-w46*)
+		 :y (* (cadr e-pos) *blo-h46*)
+		 :moto-w *obj-w* :moto-h *obj-h*
 		 :str str :def def :hp hp :maxhp hp
 		 :ido-spd ido-spd
-		 :w 40 :h 40 ::w/2 20 :h/2 20
+		 :w *obj-w* :h *obj-h*
+		 :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
 		 :obj-type e-type
 		 :img 1))
 
@@ -238,22 +239,40 @@
 	    (let* ((obj-num (aref (donjon-map map) y x))
 		   (img (map-obj-img obj-num))
 		   (obj-type (map-obj-type obj-num))
-		   (posx (* x *r-blo-w*)) (posy (* y *r-blo-h*))
+		   (obj-w *blo-w46*) (obj-h *blo-h46*)
+		   (posx (* x obj-w)) (posy (* y obj-h))
 		   (obj (make-instance 'obj :x posx :y posy
-				   :x2 (+ posx *r-blo-w*) :y2 (+ posy *r-blo-h*)
-				   :w *r-blo-w* :h *r-blo-h* :w/2 (floor *r-blo-w* 2)
-				   :h/2 (floor *r-blo-h* 2)
+				   :x2 (+ posx obj-w) :y2 (+ posy obj-h)
+				   :w obj-w :h obj-h :w/2 (floor obj-w 2)
+				   :moto-w *obj-w* :moto-h *obj-h*
+				   :h/2 (floor obj-h 2)
 				   :obj-type obj-type :img img)))
 	      (case obj-num
 		(0
 		 (push obj (donjon-yuka map)))
-		((30 40)
+		(40
 		 (push obj (donjon-blocks map)))
+		((30)
+		 (let ((blo (make-instance 'obj :x posx :y posy
+				   :x2 (+ posx *blo-w*) :y2 (+ posy *blo-w*)
+				   :w *blo-w* :h *blo-h* :w/2 (floor *blo-w* 2)
+				   :moto-w *blo-w* :moto-h *blo-h*
+				   :h/2 (floor *blo-w* 2)
+				   :obj-type obj-type :img img))
+		       (yuka (make-instance 'obj :x posx :y posy
+				   :x2 (+ posx *blo-w46*) :y2 (+ posy *blo-w46*)
+				   :w *blo-w46* :h *blo-h46* :w/2 (floor *blo-w46* 2)
+				   :moto-w *obj-w* :moto-h *obj-h*
+				   :h/2 (floor *blo-w46* 2)
+				   :obj-type :yuka :img (map-obj-img 0))))
+		   (push blo (donjon-blocks map))
+		   (push yuka (donjon-yuka map))))
 		((2 3)
 		 (let ((yuka (make-instance 'obj :x posx :y posy
-				   :x2 (+ posx *r-blo-w*) :y2 (+ posy *r-blo-h*)
-				   :w *r-blo-w* :h *r-blo-h* :w/2 (floor *r-blo-w* 2)
-				   :h/2 (floor *r-blo-h* 2)
+				   :x2 (+ posx *blo-w46*) :y2 (+ posy *blo-w46*)
+				   :w *blo-w46* :h *blo-h46* :w/2 (floor *blo-w46* 2)
+				   :moto-w *obj-w* :moto-h *obj-h*
+				   :h/2 (floor *blo-w46* 2)
 				   :obj-type :yuka :img (map-obj-img 0))))
 		   (push yuka (donjon-yuka map))
 		   (push obj (donjon-objects map)))))))))
@@ -287,8 +306,8 @@
              (setf (aref (donjon-map map) starty startx) 0)
              (recursion starty startx map 0))
        ;;(setf (aref (donjon-map map) starty startx) 1) ;;主人公の位置
-       (setf (y p) (* starty *r-blo-w*)
-	     (x p) (* startx *r-blo-h*)) ;;初期位置
+       (setf (y p) (* starty *blo-w46*)
+	     (x p) (* startx *blo-h46*)) ;;初期位置
        ;;パーティーの位置に敵を配置しないようにする
        (setf (donjon-path map) (remove (list (x p) (y p)) (donjon-path map) :test #'equal))
        (set-enemies map) ;;敵を配置
