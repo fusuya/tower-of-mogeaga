@@ -164,25 +164,52 @@
 (defun drop-item-type (map)
   (car (donjon-drop-item map)))
 
-(defun create-enemy (e-type e-pos hp str def ido-spd)
+;;敵生成
+(defun create-enemy (e-type e-pos hp str def expe ido-spd)
   (make-instance 'enemy :x (* (car e-pos) *blo-w46*)
 		 :y (* (cadr e-pos) *blo-h46*)
 		 :moto-w *obj-w* :moto-h *obj-h*
 		 :str str :def def :hp hp :maxhp hp
-		 :ido-spd ido-spd
+		 :ido-spd ido-spd :expe expe
 		 :w *obj-w* :h *obj-h*
 		 :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
 		 :obj-type e-type
 		 :img 1))
 
+;;プレイヤーのいる階層で敵の強さが変わる
 (defun create-enemies (e-pos e-type)
   (case e-type
-    (:slime   (create-enemy e-type e-pos 6 2 2 1))
-    (:orc     (create-enemy e-type e-pos 10 4 1 1))
-    (:brigand (create-enemy e-type e-pos 6 2 2 2))
-    (:hydra   (create-enemy e-type e-pos 12 2 5 1))
-    (:dragon  (create-enemy e-type e-pos 20 5 6 2))
-    (:yote1   (create-enemy e-type e-pos 3 3 50 20))))
+    (:slime   (create-enemy e-type e-pos
+			    (+ 6 (floor (random (stage *p*)) 2))
+			    (+ 1 (floor (random (stage *p*)) 3))
+			    (+ 1 (floor (random (stage *p*)) 3))
+			    (+ 3 (floor (random (stage *p*)) 3))
+			    1))
+    (:orc     (create-enemy e-type e-pos
+			    (+ 10 (floor (random (stage *p*)) 2))
+			    (+ 4 (floor (random (stage *p*)) 2))
+			    (+ 1 (floor (random (stage *p*)) 3))
+			    (+ 5 (floor (random (stage *p*)) 2))
+			    1))
+    (:brigand (create-enemy e-type e-pos
+			    (+ 6 (floor (random (stage *p*)) 2))
+			    (+ 2 (floor (random (stage *p*)) 3))
+			    (+ 2 (floor (random (stage *p*)) 3))
+			    (+ 7 (floor (random (stage *p*)) 2))
+			    2))
+    (:hydra   (create-enemy e-type e-pos
+			    (+ 12 (floor (random (stage *p*)) 1))
+			    (+ 2 (floor (random (stage *p*)) 3))
+			    (+ 5 (floor (random (stage *p*)) 2))
+			    (+ 10 (floor (random (stage *p*)) 2))
+			    1))
+    (:dragon  (create-enemy e-type e-pos
+			    (+ 20 (floor (random (stage *p*)) 2))
+			    (+ 5 (floor (random (stage *p*)) 2))
+			    (+ 6 (floor (random (stage *p*)) 2))
+			    (+ 20 (floor (random (stage *p*)) 2))
+			    2))
+    (:yote1   (create-enemy e-type e-pos 3 3 50 300 20))))
 
 ;;敵を配置する
 (defun set-enemies (map)
