@@ -272,20 +272,21 @@
    (atk-c     :accessor atk-c     :initform 0     :initarg :atk-c)   ;;攻撃モーション更新用
    (atk-img   :accessor atk-img   :initform 0     :initarg :atk-img) ;;攻撃画像番号 ０～２
    (atk-spd   :accessor atk-spd   :initform 8     :initarg :atk-spd) ;;攻撃速度
+   (expe      :accessor expe      :initform 0     :initarg :expe) ;;もらえる経験値orプレイヤーの所持経験値
    ))
 
 ;;適用
 (defclass enemy (common)
   ((centerx      :accessor centerx    :initform 30  :initarg :centerx)
    (centery      :accessor centery    :initform 30  :initarg :centery)
-   (drop         :accessor drop       :initform nil :initarg :drop)
+   (drop         :accessor drop       :initform nil :initarg :drop)    ;;ドロップするアイテム
+   
    (deg          :accessor deg        :initform 10  :initarg :deg)))
 
 ;;プレイヤー用
 (defclass player (common)
   ((key?       :accessor key?        :initform nil :initarg :key?)     ;;鍵所持
    (lvup-exp   :accessor lvup-exp    :initform 100 :initarg :lvup-exp) ;;次のレベルアップに必要な経験値
-   (expe       :accessor expe        :initform 0   :initarg :expe)     ;;現在の所持経験値
    (name       :accessor name        :initform nil :initarg :name)     ;;名前
    (hammer     :accessor hammer      :initform 0   :initarg :hammer)   ;;所持ハンマー
    (buki       :accessor buki        :initform nil :initarg :buki)     ;;武器
