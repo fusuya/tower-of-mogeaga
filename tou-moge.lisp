@@ -1,6 +1,6 @@
 ;;TODO  アイテムの種類を増やす
-;;ボス
-;;プレイヤーのレベルアップ
+;;ボス登場
+;;音つける
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -13,7 +13,7 @@
                                 (create-solid-brush (encode-rgb 255 255 0))
                                 (create-solid-brush (encode-rgb 0 255 255))
                                 (create-solid-brush (encode-rgb 255 0 255))))))
-
+りせき
 (defun set-font ()
   (setf *font140* (create-font "MSゴシック" :height 140)
         *font40* (create-font "MSゴシック" :height 40)
@@ -62,10 +62,10 @@
         *start-time* (get-internal-real-time)
         *ha2ne2* nil
         *copy-buki* (copy-tree *buki-d*)
-        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 10 :def 10
+        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 5 :def 2
 			   :moto-w *obj-w* :moto-h *obj-h* :atk-now nil :ido-spd 2
 			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
-			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 5))
+			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 3))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
   (maze *map* *p*))
 
@@ -176,6 +176,22 @@
   (let* ((a1 (str atker)))
     (max 1 (floor (* (- a1 (/ (def defender) 2)) (/ (+ 99 (random 55)) 256))))))
 
+;;レヴェルアップ時ステータス上昇
+(defun status-up (atker)
+  (incf (maxhp atker) (1+ (random 3)))
+  (incf (str atker) (random 3))
+  (incf (def atker) (random 3)))
+
+;;経験値取得
+(defun player-get-exp (atker defender)
+  (when (eq 'player (type-of atker))
+    (incf (expe atker) (expe defender))
+    (loop while (>= (expe atker) (lvup-exp atker))
+       do
+	 (status-up atker)
+	 (incf (level atker))
+	 (setf (expe atker) (- (expe atker) (lvup-exp atker)))
+	 (incf (lvup-exp atker) 20))))
 
 ;;ダメージ計算して　表示する位置とか設定
 (defun set-damage (atker defender)
@@ -189,7 +205,8 @@
 			       :maxy dmg-y :miny (- dmg-y 15))))
       (decf (hp defender) dmg-num) ;;hpを減らす
       (when (>= 0 (hp defender)) ;; hpが0以下になったら死亡
-	(setf (dead defender) t))
+	(setf (dead defender) t)
+	(player-get-exp atker defender))
       (setf (dmg defender) dmg) ;;ダメージを表示するためのもの
       )))
 
@@ -609,7 +626,7 @@
   (let ((ball (make-instance 'enemy :img 0 :obj-type :briball
 			     :moto-w 20 :moto-h 20 :dir (dir e)
 			     :str (str e) :maxhp 1 :hp 1 :def 0
-			     :w 20 :h 20 :w/2 10 :h/2 10)))
+			     :w 16 :h 16 :w/2 8 :h/2 8)))
     (setf (x ball) (- (x e) dx)
 	  (y ball) (- (y e) dy))
     (if (null (block-hit-p ball))
@@ -796,9 +813,6 @@
        (select-object *hogememdc* (aref *images* (img obj)))
        (trans-blt (x obj) (y obj) (moto-w obj) (moto-h obj)
 		  (w obj) (h obj))))
-       ;; (trans-blt (floor (* (x obj) *mag-w*)) (floor (* (y obj) *mag-h*))
-       ;; 		  (moto-w obj) (moto-h obj)
-       ;; 		  (floor (* (w obj) *mag-w*)) (floor (* (h obj) *mag-h*)))))
 
 ;;床描画
 (defun render-yuka ()
@@ -823,11 +837,16 @@
   (set-bk-mode *hmemdc* :transparent)
   (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) 10)
   (text-out *hmemdc* (format nil "Lv:~2d" (level *p*)) (+ *map-w* 10) 50)
-  (text-out *hmemdc* (format nil "HP:~2d" (hp *p*)) (+ *map-w* 10) 90)
-  (text-out *hmemdc* (format nil "ハンマー") (+ *map-w* 10) 170)
-  (text-out *hmemdc* (format nil "残り:~d回" (hammer *p*)) (+ *map-w* 10) 210)
-  (text-out *hmemdc* (format nil "w:~2d" *change-screen-w*) (+ *map-w* 10) 250)
-  (text-out *hmemdc* (format nil "h:~2d" *change-screen-h*) (+ *map-w* 10) 290)
+  (text-out *hmemdc* (format nil "HP:~2d/~2d" (hp *p*) (maxhp *p*)) (+ *map-w* 10) 90)
+  (text-out *hmemdc* (format nil "攻:~2d" (str *p*)) (+ *map-w* 10) 130)
+  (text-out *hmemdc* (format nil "防:~2d" (def *p*)) (+ *map-w* 10) 170)
+  (text-out *hmemdc* (format nil "exp") (+ *map-w* 10) 210)
+  (text-out *hmemdc* (format nil "~3d/~3d" (expe *p*) (lvup-exp *p*)) (+ *map-w* 10) 250)
+  (text-out *hmemdc* (format nil "ハンマー") (+ *map-w* 10) 290)
+  (text-out *hmemdc* (format nil "残り:~d回" (hammer *p*)) (+ *map-w* 10) 330)
+  
+  ;;(text-out *hmemdc* (format nil "w:~2d" *change-screen-w*) (+ *map-w* 10) 250)
+  ;;(text-out *hmemdc* (format nil "h:~2d" *change-screen-h*) (+ *map-w* 10) 290)
   (text-out *hmemdc* (format nil "モゲアーガの塔 ~2,'0d階" (stage *p*)) 10 (+ *map-h* 10))
   (text-out *hmemdc* (format nil "持ち物") 10 (+ *map-h* 40))
   (loop for item in (item *p*)
@@ -969,24 +988,11 @@
   (invalidate-rect hwnd nil nil))
 
 ;;ウィンドウサイズ変更時に画像拡大縮小する
-(defun change-screen-size (lp hwnd)
+(defun change-screen-size (lp)
   (let* ((change-w (loword lp))
 	 (change-h (hiword lp)))
     (setf *change-screen-w* change-w
-	  *change-screen-h* change-h
-	  *mag-w* (/ change-w *screen-w*)
-	  *mag-h* (/ change-h *screen-h*))))
-    ;; (delete-object *hmemdc*)
-    ;; (delete-object *hbitmap*)
-    ;; (delete-object *hogememdc*)
-    ;; (delete-object *hogebitmap*)
-    ;; (with-dc (hdc hwnd)
-    ;;    (setf *hmemdc* (create-compatible-dc hdc)
-    ;;          *hbitmap* (create-compatible-bitmap hdc *change-screen-w* *change-screen-h*)
-    ;; 	     *hogememdc* (create-compatible-dc hdc)
-    ;;          *hogebitmap* (create-compatible-bitmap hdc *change-screen-w* *change-screen-h*))
-    ;;    (select-object *hmemdc* *hbitmap*)
-    ;;    (select-object *hogememdc* *hogebitmap*))))
+	  *change-screen-h* change-h)))
 
 (defun remake-obj ()
   (loop for blo in (donjon-yuka *map*)
@@ -1038,7 +1044,7 @@
      (with-paint (hwnd hdc)
        (render-game hdc)))
     ((const +wm-size+)
-     (change-screen-size lparam hwnd))
+     (change-screen-size lparam))
      ;;(remake-obj))
     ((const +wm-close+)
      (destroy-window hwnd))
