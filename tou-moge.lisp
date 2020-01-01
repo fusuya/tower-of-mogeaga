@@ -1,6 +1,6 @@
 ;;TODO  アイテムの種類を増やす
-;;ボス登場
-;;音つける
+;;ボスの攻撃
+;;BGMどうする
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -13,7 +13,7 @@
                                 (create-solid-brush (encode-rgb 255 255 0))
                                 (create-solid-brush (encode-rgb 0 255 255))
                                 (create-solid-brush (encode-rgb 255 0 255))))))
-りせき
+
 (defun set-font ()
   (setf *font140* (create-font "MSゴシック" :height 140)
         *font40* (create-font "MSゴシック" :height 40)
@@ -62,12 +62,16 @@
         *start-time* (get-internal-real-time)
         *ha2ne2* nil
         *copy-buki* (copy-tree *buki-d*)
-        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 5 :def 2
+        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 5 :def 2 :stage 30
 			   :moto-w *obj-w* :moto-h *obj-h* :atk-now nil :ido-spd 2
 			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
 			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 3))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
   (maze *map* *p*))
+
+;;効果音ならす
+(defun sound-play (path)
+  (play-sound path '(:filename :async)))
 
 
 ;;キー押したとき
@@ -144,20 +148,25 @@
      do
        (when (obj-hit-p *p* obj)
 	 (case (obj-type obj)
-	   (:key (setf (key? *p*) t)
-		 (setf (img obj) +yuka+
-		       (obj-type obj) :yuka))
+	   (:key
+	    (sound-play *get-item-wav*)
+	    (setf (key? *p*) t
+		  (img obj) +yuka+
+		  (obj-type obj) :yuka))
 	   (:potion
-	    (setf (hp *p*) (maxhp *p*))
-	    (setf (donjon-objects *map*)
+	    (sound-play *get-potion-wav*)
+	    (setf (hp *p*) (maxhp *p*)
+		  (donjon-objects *map*)
 		  (remove obj (donjon-objects *map*) :test #'equal)))
 	   (:boots
-	    (setf (ido-spd *p*) 3) ;;移動速度アップ
+	    (sound-play *get-item-wav*)
 	    (push obj (item *p*))
-	    (setf (donjon-objects *map*)
+	    (setf (ido-spd *p*) 3 ;;移動速度アップ
+		  (donjon-objects *map*)
 		  (remove obj (donjon-objects *map*) :test #'equal)))
 	   (:door
 	    (when (key? *p*)
+	      (sound-play *door-wav*)
 	      (incf (stage *p*))
 	      (setf (key? *p*) nil)
 	      ;;(setf *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
@@ -188,6 +197,7 @@
     (incf (expe atker) (expe defender))
     (loop while (>= (expe atker) (lvup-exp atker))
        do
+	 (sound-play *lvup-wav*)
 	 (status-up atker)
 	 (incf (level atker))
 	 (setf (expe atker) (- (expe atker) (lvup-exp atker)))
@@ -220,6 +230,7 @@
 	      ((:slime :orc :hydra :dragon :brigand :briball :yote1)
 	       (when (and (obj-hit-p buki e)
 			  (null (dead e)))
+		 (sound-play *atk-enemy-wav*)
 		 (setf (atkhit p) t) ;;攻撃があたりました
 		 (set-damage p e)))))))) ;;ダメージ処理
 	    ;; (when (>= 0 (hp e))
@@ -308,6 +319,7 @@
     (loop for kabe in (donjon-blocks *map*)
        do (when (and (obj-hit-p buki kabe)
 		     (eq (obj-type kabe) :soft-block))
+	    (sound-play *atk-block-wav*)
 	    (setf (obj-type kabe) :yuka
 		  (img kabe) +yuka+)
 	    ))))
@@ -372,6 +384,7 @@
   (loop for e in (donjon-enemies *map*)
      do (when (and (obj-hit-p p e)
 		   (null (dead e)))
+	  (sound-play *damage-wav*)
 	  (set-damage e p) 
 	  (setf (dmg-c p) 50)
 	  (case (obj-type e)
@@ -656,32 +669,71 @@
       (update-enemy-pos e)))
 
 ;;火追加 
-(defun add-fire (e dx dy fire-n)
+(defun add-fire (e fire-n)
   (let ((fire (make-instance 'enemy :img 0 :obj-type :fire
 			     :str (str e)
-			     :moto-w (moto-w e) :moto-h (moto-h e)
-			     :w (w e) :h (h e) :w/2 (w/2 e) :h/2 (h/2 e))))
-    (setf (x fire) (- (x e) (* dx fire-n))
-	  (y fire) (- (y e) (* dy fire-n)))
+			     :moto-w *fire-w* :moto-h *fire-h*
+			     :w *fire-w* :h *fire-h* :w/2 *fire-w/2* :h/2 *fire-h/2*)))
+    (case (dir e)
+      (:up (setf (x fire) (x e)
+		 (y fire) (- (y e) (* *fire-h* fire-n))))
+      (:down (setf (x fire) (x e)
+		   (y fire) (+ (y e) (h e) (- (* *fire-h* fire-n) *fire-h*))))
+      (:right (setf (x fire) (+ (x e) (w e) (- (* *fire-w* fire-n) *fire-w*))
+		    (y fire) (y e)))
+      (:left (setf (x fire) (- (x e) (* *fire-w* fire-n))
+		   (y fire) (y e))))
+      
     (if (null (block-hit-p fire)) ;;ブロックにぶつかるなら追加しない
 	(push fire (donjon-enemies *map*))
 	(setf (atk-now e) nil ;;初期化
 	      (atk-c e) 0))))
 
+;;火追加ボス 
+(defun boss-add-fire (e fire-n)
+  (let ((fire (make-instance 'enemy :img 0 :obj-type :fire
+			     :str (str e)
+			     :moto-w *fire-w* :moto-h *fire-h*
+			     :w *fire-w* :h *fire-h* :w/2 *fire-w/2* :h/2 *fire-h/2*))
+	(fire2 (make-instance 'enemy :img 0 :obj-type :fire
+			      :str (str e)
+			      :moto-w *fire-w* :moto-h *fire-h*
+			      :w *fire-w* :h *fire-h* :w/2 *fire-w/2* :h/2 *fire-h/2*)))
+    (case (dir e)
+      (:up (setf (x fire) (x e)
+		 (y fire) (- (y e) (* *fire-h* fire-n))
+		 (x fire2) (+ (x e) *fire-w*)
+		 (y fire2) (- (y e) (* *fire-h* fire-n))))
+      (:down (setf (x fire) (x e)
+		   (x fire2) (+ (x e) *fire-w*)
+		   (y fire) (+ (y e) (h e) (- (* *fire-h* fire-n) *fire-h*))
+		   (y fire2) (+ (y e) (h e) (- (* *fire-h* fire-n) *fire-h*))))
+      (:right (setf (x fire) (+ (x e) (w e) (- (* *fire-w* fire-n) *fire-w*))
+		    (x fire2) (+ (x e) (w e) (- (* *fire-w* fire-n) *fire-w*))
+		    (y fire) (y e)
+		    (y fire2) (+ (y e) *fire-h*)))
+      (:left (setf (x fire) (- (x e) (* *fire-w* fire-n))
+		   (x fire2) (- (x e) (* *fire-w* fire-n))
+		   (y fire) (y e)
+		   (y fire2) (+ (y e) *fire-h*))))
+      
+    (if (null (block-hit-p fire)) ;;ブロックにぶつかるなら追加しない
+	(progn (push fire (donjon-enemies *map*))
+	       (push fire2 (donjon-enemies *map*)))
+	(setf (atk-now e) nil ;;初期化
+	      (atk-c e) 0))))
+
 ;;火が追加できるか
-(defun check-add-fire (e)
+(defun check-add-fire (e max-fire fire-time)
   (incf (atk-c e)) ;;火を追加する間隔
-  (when (zerop (mod (atk-c e) 30))
-    (let ((fire-n (floor (atk-c e) 30)))
-      (case (dir e)
-	(:up (add-fire e 0 (h e) fire-n))
-	(:down (add-fire e 0 (- (h e)) fire-n))
-	(:left (add-fire e (w e) 0 fire-n))
-	(:right (add-fire e (- (w e)) 0 fire-n)))
-      (when (= fire-n 3)
+  (when (zerop (mod (atk-c e) fire-time))
+    (let ((fire-n (floor (atk-c e) fire-time)))
+      (case (obj-type e)
+	(:dragon (add-fire e fire-n))
+	(:boss (boss-add-fire e fire-n)))
+      (when (= fire-n max-fire)
 	(setf (atk-now e) nil
 	      (atk-c e) 0)))))
-
 
 
 
@@ -690,7 +742,7 @@
 (defun update-dragon (e)
   (cond
     ((atk-now e)
-     (check-add-fire e))
+     (check-add-fire e 3 30))
     (t
      (incf (dir-c e)) ;;移動カウンター更新
      (incf (walk-c e))
@@ -727,6 +779,24 @@
   (when (>= (atk-c e) *orc-atk-effect-time*)
     (setf (donjon-enemies *map*)
 	  (remove e (donjon-enemies *map*) :test #'equal))))
+
+;;ボスの行動
+(defun update-boss (e)
+  (cond
+    ((atk-now e)
+     (check-add-fire e 5 20))
+    (t
+     (incf (dir-c e)) ;;移動カウンター更新
+     (incf (walk-c e))
+     (when (and (= 1 (random 50)) ;;攻撃
+		(set-can-atk-dir e (* (w e) 3) (* (h e) 3)))
+       (setf (atk-now e) t))
+        ;;(set-enemy-atk e))
+     (update-enemy-anime-img e)
+     (if (> (dir-c e) 40)
+	 (progn (set-rand-dir e)
+		(setf (dir-c e) 0))
+	 (update-enemy-pos e)))))
     
 
 ;;敵の位置更新
@@ -743,6 +813,7 @@
 	    (:briball (update-briball e))
 	    (:orc     (update-orc e))
 	    (:yote1   (update-slime e 10))
+	    (:boss    (update-boss e))
 	    (:orc-atk (update-orc-atk-effect e))))))
 
 
@@ -777,7 +848,8 @@
 	  (:briball (render-enemy e +brigand-ball+))
 	  (:yote1 (render-enemy e +yote-anime+))
 	  (:orc   (render-enemy e +orc-anime+))
-	  (:orc-atk (render-enemy e +orc-atk+)))))
+	  (:orc-atk (render-enemy e +orc-atk+))
+	  (:boss (render-enemy e +boss-anime+)))))
 
 
 

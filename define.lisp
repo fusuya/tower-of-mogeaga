@@ -38,10 +38,11 @@
 (defconstant +yote-anime+ 9)
 (defconstant +orc-anime+ 12)
 (defconstant +slime-anime+ 15)
-(defconstant +hydra-atk+ 18)
-(defconstant +brigand-ball+ 19)
-(defconstant +dragon-fire+ 20)
-(defconstant +orc-atk+ 21)
+(defconstant +boss-anime+ 18)
+(defconstant +hydra-atk+ 21)
+(defconstant +brigand-ball+ 22)
+(defconstant +dragon-fire+ 23)
+(defconstant +orc-atk+ 24)
 
 ;;敵の攻撃演出時間
 (defparameter *orc-atk-effect-time* 30)
@@ -87,6 +88,14 @@
 (defparameter *urawaza* nil)
 (defparameter *images* nil)
 
+(defparameter *atk-block-wav* "./wav/atk-block.wav")
+(defparameter *atk-enemy-wav* "./wav/atk-enemy.wav")
+(defparameter *damage-wav* "./wav/damage.wav")
+(defparameter *door-wav* "./wav/door.wav")
+(defparameter *get-item-wav* "./wav/get-item.wav")
+(defparameter *get-potion-wav* "./wav/get-potion.wav")
+(defparameter *lvup-wav* "./wav/lvup.wav")
+
 
 ;;拡大
 (Defparameter *mag-w* 1)
@@ -103,6 +112,12 @@
 ;;表示するブロック画像のサイズ
 (defparameter *blo-w46* 42)
 (defparameter *blo-h46* 42)
+
+;;炎サイズ
+(defparameter *fire-w* 32)
+(defparameter *fire-h* 32)
+(defparameter *fire-w/2* (floor *fire-w* 2))
+(defparameter *fire-h/2* (floor *fire-h* 2))
 
 ;;元の上下向きプレイヤー画像のサイズ
 (defparameter *tate-w* 32)

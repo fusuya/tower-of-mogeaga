@@ -30,6 +30,14 @@
 		(setf (aref map i j) 40) ;;壊せない壁
 		(setf (aref map i j) 30))))) ;;壊せる壁
 
+;;ボスフロア
+(defun create-boss-stage (map tate yoko) 
+  (loop for i from 0 below tate do
+       (loop for j from 0 below yoko do
+	    (if (or (= i 0) (= j 0) (= i (1- tate)) (= j (1- yoko)))
+		(setf (aref map i j) 40) ;;壊せない壁
+		(setf (aref map i j) 0))))) ;;壊せる壁
+
 (defun rand1234 (lst lst1)
   (if (null lst1)
       lst
@@ -224,6 +232,20 @@
 	   (setf (donjon-path *map*)
 		 (remove e-pos (donjon-path *map*) :test #'equal))))))
 
+;;ボス配置
+(defun set-boss (map)
+  (let* ((e-pos (list (floor (donjon-yoko map) 2) 1))
+	 (boss (make-instance 'enemy :x (* (car e-pos) *blo-w46*)
+			      :y (* (cadr e-pos) *blo-h46*)
+			      :moto-w 64 :moto-h 64
+			      :str 50 :def 20 :hp 100 :maxhp 100
+			      :ido-spd 2 :expe 0
+			      :w 64 :h 64
+			      :w/2 32 :h/2 32
+			      :obj-type :boss
+			      :img 1)))
+    (push boss (donjon-enemies map))))
+
 ;;マップ設定
 (defun set-map (map moto)
   (setf (donjon-tate map) 11
@@ -315,8 +337,11 @@
     (setf (donjon-map map) (make-array (list (donjon-tate map) (donjon-yoko map))));;マップ配列作成
     (full-block-map (donjon-map map) (donjon-tate map) (donjon-yoko map)) ;;マップをブロックで埋める
     (cond
-      ((= (tower-lv p) 100) ;; 100階は固定マップ
-       (set-map map *map100*))
+      ((= (stage p) 30) ;; 100階は固定マップ
+       (create-boss-stage (donjon-map map) (donjon-tate map) (donjon-yoko map))
+       (setf (y p) (* (- (donjon-tate map) 2) *blo-w46*)
+	     (x p) (* (floor (donjon-yoko map) 2) *blo-h46*));;プレイヤー位置
+       (set-boss map))
       (t
        ;;奇数座標を初期位置にする
        (setf x (random (floor (donjon-yoko map) 2))
