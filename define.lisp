@@ -33,12 +33,12 @@
 
 ;;敵画像切り替えよう
 (defconstant +brigand-anime+ 0)
-(defconstant +dragon-anime+ 3)
-(defconstant +hydra-anime+ 6)
-(defconstant +yote-anime+ 9)
-(defconstant +orc-anime+ 12)
-(defconstant +slime-anime+ 15)
-(defconstant +boss-anime+ 18)
+(defconstant +dragon-anime+ 1)
+(defconstant +hydra-anime+ 2)
+(defconstant +yote-anime+ 3)
+(defconstant +orc-anime+ 4)
+(defconstant +slime-anime+ 5)
+(defconstant +boss-anime+ 6)
 (defconstant +hydra-atk+ 21)
 (defconstant +brigand-ball+ 22)
 (defconstant +dragon-fire+ 23)
@@ -87,6 +87,8 @@
 (defparameter *copy-buki* (copy-tree *buki-d*))
 (defparameter *urawaza* nil)
 (defparameter *images* nil)
+(defparameter *anime-monsters-img* (load-image "./img/monsters.bmp" :type :bitmap
+					  :flags '(:load-from-file :create-dib-section)))
 
 (defparameter *atk-block-wav* "./wav/atk-block.wav")
 (defparameter *atk-enemy-wav* "./wav/atk-enemy.wav")

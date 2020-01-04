@@ -1,6 +1,5 @@
 ;;TODO  アイテムの種類を増やす
 ;;ボスの攻撃
-;;BGMどうする
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -38,6 +37,7 @@
   (delete-object-array *p-imgs*)
   (delete-object-array *hammer-imgs*)
   (delete-object-array *monster-anime*)
+  (delete-object  *anime-monsters-img*)
   (delete-object-array *buki-imgs*))
 
 (defun load-images ()
@@ -45,6 +45,8 @@
 	*p-imgs* (make-imgs-array "./img/p*.*")
 	*hammer-imgs* (make-imgs-array "./img/ham*.*")
 	*monster-anime* (make-imgs-array "./img/anime-*.*")
+	*anime-monsters-img* (load-image "./img/monsters.bmp" :type :bitmap
+					  :flags '(:load-from-file :create-dib-section))
 	*buki-imgs* (make-imgs-array "./img/buki*.*")))
 
 ;;ゲーム初期化
@@ -62,7 +64,7 @@
         *start-time* (get-internal-real-time)
         *ha2ne2* nil
         *copy-buki* (copy-tree *buki-d*)
-        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 5 :def 2 :stage 30
+        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 5 :def 2 :stage 20
 			   :moto-w *obj-w* :moto-h *obj-h* :atk-now nil :ido-spd 2
 			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
 			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 3))
@@ -826,14 +828,21 @@
 		   :width-dest w-dest :height-dest h-dest
 		   :transparent-color (encode-rgb 0 255 0)))
 
+(defun new-trans-blt (x y x-src y-src w-src h-src w-dest h-dest)
+  (transparent-blt *hmemdc* x y *hogememdc* x-src y-src :width-source w-src
+		   :height-source h-src
+		   :width-dest w-dest :height-dest h-dest
+		   :transparent-color (encode-rgb 0 255 0)))
+
 
 
 
 ;;アニメ表示
 (defun render-enemy (e anime-num)
   (when (null (dead e)) ;;死んでなかったら表示
-    (select-object *hogememdc* (aref *monster-anime* (+ (img e) anime-num)))
-    (trans-blt (x e) (y e) (moto-w e) (moto-h e) (w e) (h e))))
+    (select-object *hogememdc* *anime-monsters-img*)
+    (new-trans-blt (x e) (y e) (* (moto-w e) (img e)) (* *obj-h* anime-num)
+		   (moto-w e) (moto-h e) (w e) (h e))))
 
 ;;敵表示
 (defun render-enemies ()
@@ -982,12 +991,22 @@
 		  (null (dead e)))
 	 (render-hpbar e))))
 
+
+;;test
+(defun render-test ()
+  (select-object *hogememdc*  *anime-monsters-img*)
+  (transparent-blt *hmemdc* 0 0 *hogememdc* 0 32 :width-source 32
+		   :height-source 32
+		   :width-dest 32 :height-dest 32
+		   :transparent-color (encode-rgb 0 255 0)))
+
 ;;ゲーム全体描画
 (defun render-game (hdc)
   (render-map)
   (render-player)
   (render-p-status)
   (render-enemies)
+  (render-test)
   (render-all-damage)
   (transparent-blt hdc 0 0 *hmemdc* 0 0
           :width-dest *change-screen-w* :height-dest *change-screen-h*
