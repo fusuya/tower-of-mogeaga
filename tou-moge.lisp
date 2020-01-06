@@ -1,5 +1,6 @@
 ;;TODO  アイテムの種類を増やす
 ;;ボスの攻撃
+;;画像整理
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -34,19 +35,20 @@
 
 (defun delete-images ()
   (delete-object-array *images*)
-  (delete-object-array *p-imgs*)
+  (delete-object *p-imgs*)
   (delete-object-array *hammer-imgs*)
   (delete-object-array *monster-anime*)
-  (delete-object  *anime-monsters-img*)
+  (delete-object *anime-monsters-img*)
   (delete-object-array *buki-imgs*))
 
 (defun load-images ()
   (setf *images* (make-imgs-array "./img/img-*.*")
-	*p-imgs* (make-imgs-array "./img/p*.*")
+	*p-imgs* (load-image "./img/p-ido-anime.bmp" :type :bitmap
+			     :flags '(:load-from-file :create-dib-section))
 	*hammer-imgs* (make-imgs-array "./img/ham*.*")
 	*monster-anime* (make-imgs-array "./img/anime-*.*")
 	*anime-monsters-img* (load-image "./img/monsters.bmp" :type :bitmap
-					  :flags '(:load-from-file :create-dib-section))
+					 :flags '(:load-from-file :create-dib-section))
 	*buki-imgs* (make-imgs-array "./img/buki*.*")))
 
 ;;ゲーム初期化
@@ -64,8 +66,8 @@
         *start-time* (get-internal-real-time)
         *ha2ne2* nil
         *copy-buki* (copy-tree *buki-d*)
-        *p* (make-instance 'player :w *obj-w* :h *obj-h* :str 5 :def 2 :stage 20
-			   :moto-w *obj-w* :moto-h *obj-h* :atk-now nil :ido-spd 2
+        *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 20
+			   :moto-w *p-w* :moto-h *p-h* :atk-now nil :ido-spd 2
 			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
 			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 3))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
@@ -245,22 +247,22 @@
 ;;通常時画像設定
 (defun set-normal-img (p)
   (case (dir p)
-    (:down  (setf (img p) +down+
-		  (w p) *tate-w* (w/2 p) *tate-w/2*
-		  (h p) *tate-h* (h/2 p) *tate-h/2*
-		  (moto-w p) *tate-w* (moto-h p) *tate-h*))
-    (:up    (setf (img p) +up+
-		  (w p) *tate-w* (w/2 p) *tate-w/2*
-		  (h p) *tate-h* (h/2 p) *tate-h/2*
-		  (moto-w p) *tate-w* (moto-h p) *tate-h*))
-    (:left  (setf (img p) +left+
-		  (w p) *yoko-w* (w/2 p) *yoko-w/2*
-		  (h p) *yoko-h* (h/2 p) *yoko-h/2*
-		  (moto-w p) *yoko-w* (moto-h p) *yoko-h*))
-    (:right (setf (img p) +right+
-		  (w p) *yoko-w* (w/2 p) *yoko-w/2*
-		  (h p) *yoko-h* (h/2 p) *yoko-h/2*
-		  (moto-w p) *yoko-w* (moto-h p) *yoko-h*))))
+    (:down  (setf (img p) 1
+		  (w p) *p-w* (w/2 p) *tate-w/2*
+		  (h p) *p-h* (h/2 p) *tate-h/2*
+		  (moto-w p) *p-w* (moto-h p) *p-h*))
+    (:up    (setf (img p) 1
+		  (w p) *p-w* (w/2 p) *tate-w/2*
+		  (h p) *p-h* (h/2 p) *tate-h/2*
+		  (moto-w p) *p-w* (moto-h p) *p-h*))
+    (:left  (setf (img p) 1
+		  (w p) *p-w* (w/2 p) *yoko-w/2*
+		  (h p) *p-h* (h/2 p) *yoko-h/2*
+		  (moto-w p) *p-w* (moto-h p) *p-h*))
+    (:right (setf (img p) 1
+		  (w p) *p-w* (w/2 p) *yoko-w/2*
+		  (h p) *p-h* (h/2 p) *yoko-h/2*
+		  (moto-w p) *p-w* (moto-h p) *p-h*))))
 
 
 ;;武器の画像を設定
@@ -333,6 +335,19 @@
       (setf (x p) (- (x blo) (w p))))))
 
 
+;;歩行グラフィック更新
+(defun update-ido-anime-img (e)
+  (with-slots (walk-c walk-func img) e
+    (incf (walk-c e))
+    ;;walk-counterが10を超えたら画像更新
+    (when (> walk-c 15)
+      (cond ;;walk-stateが 0 1 2 1 0 1 2 ってなるようにする
+	((= img 0)   (setf walk-func #'+))
+	((= img 1))
+	((= img 2) (setf walk-func #'-)))
+      (setf img (+ (funcall walk-func img 1)))
+      (setf walk-c 0))))
+
 ;;キー入力処理
 (defun update-input-key (p)
   (with-slots (left right down up z c shift) *keystate*
@@ -348,32 +363,36 @@
        (setf (hammer-now p) t)
        (hammer-hit-kabe p))
       (left
-       (when (null shift)
-	 (setf (dir p) :left)
-	 (set-normal-img p))
+       (when (and (null shift)
+		  (not (eq (dir p) :left)))
+	 (setf (dir p) :left))
+       (update-ido-anime-img p)
        (decf (x p) (ido-spd p))
        (when (block-hit-p p)
 	 (incf (x p) (ido-spd p))))
       (right
-       (when (null shift)
-	 (setf (dir p) :right)
-	 (set-normal-img p))
+       (when (and (null shift)
+		  (not (eq (dir p) :right)))
+	 (setf (dir p) :right))
+       (update-ido-anime-img p)
        (incf (x p) (ido-spd p))
        (when (block-hit-p p)
 	 (decf (x p) (ido-spd p))))
       (up
-       (when (null shift)
-	 (setf (dir p) :up)
-	 (set-normal-img p))
+       (when (and (null shift)
+		  (not (eq (dir p) :up)))
+	 (setf (dir p) :up))
+       (update-ido-anime-img p)
        (decf (y p) (ido-spd p))
        (let ((blo  (block-hit-p p)))
 	 (when blo
 	   (incf (y p) (ido-spd p))
 	   (merikomi-hantei p))))
       (down
-       (when (null shift)
-	 (setf (dir p) :down)
-	 (set-normal-img p))
+       (when (and (null shift)
+		  (not (eq (dir p) :down)))
+	 (setf (dir p) :down))
+       (update-ido-anime-img p)
        (incf (y p) (ido-spd p))
        (let ((blo  (block-hit-p p)))
 	 (when blo
@@ -394,11 +413,13 @@
 	     (setf (donjon-enemies *map*)
 		   (remove e (donjon-enemies *map*) :test #'equal)))))))
 
-	 
+
+
+
 
 ;;プレイヤーの色々更新
 (defun update-player (p)
-  (when (> (dmg-c p) 0)
+  (when (> (dmg-c p) 0) ;;敵からの攻撃食らう間隔
     (decf (dmg-c p)))
   (when (zerop (dmg-c p)) ;;dmg-cが0の時
     (hit-enemies-player p)) ;;ダメージ処理
@@ -525,23 +546,11 @@
 	nil)))
       
 
-;;歩行グラフィック更新
-(defun update-enemy-anime-img (e)
-  (with-slots (walk-c walk-func img) e
-    ;;walk-counterが10を超えたら画像更新
-    (when (> walk-c 15)
-      (cond ;;walk-stateが 0 1 2 1 0 1 2 ってなるようにする
-	((= img 0)   (setf walk-func #'+))
-	((= img 1))
-	((= img 2) (setf walk-func #'-)))
-      (setf img (+ (funcall walk-func img 1)))
-      (setf walk-c 0))))
 
 ;;スライムの行動
 (defun update-slime (e change-dir-time)
   (incf (dir-c e)) ;;移動カウンター更新
-  (incf (walk-c e))
-  (update-enemy-anime-img e)
+  (update-ido-anime-img e)
   (if (> (dir-c e) change-dir-time)
       (progn (set-rand-dir e)
 	     (setf (dir-c e) 0))
@@ -580,12 +589,11 @@
      (wait-atk-effect e *orc-atk-effect-time*))
     (t
      (incf (dir-c e)) ;;移動カウンター更新
-     (incf (walk-c e))
      (when (and (= 1 (random 50)) ;;攻撃
 		(set-can-atk-dir e (w e) (h e)))
        (check-orc-atk-effect-dir e)
        (setf (atk-now e) t))
-     (update-enemy-anime-img e)
+     (update-ido-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
@@ -625,12 +633,11 @@
      (wait-atk-effect e *hydra-atk-effect-time*)) ;;TODO
     (t
      (incf (dir-c e)) ;;移動カウンター更新
-     (incf (walk-c e))
      (when (and (= 1 (random 40)) ;;攻撃
 		(set-can-atk-dir e (w e) (h e) ))
        (add-hydra-atk e)
        (setf (atk-now e) t))
-     (update-enemy-anime-img e)
+     (update-ido-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
@@ -660,8 +667,7 @@
 ;;ブリガンドの行動
 (defun update-brigand (e)
   (incf (dir-c e)) ;;移動カウンター更新
-  (incf (walk-c e))
-  (update-enemy-anime-img e)
+  (update-ido-anime-img e)
   (when (and (= 1 (random 90)) ;;攻撃
 	     (set-can-atk-dir e 600 600))
     (add-bri-ball-dir e))
@@ -747,12 +753,11 @@
      (check-add-fire e 3 30))
     (t
      (incf (dir-c e)) ;;移動カウンター更新
-     (incf (walk-c e))
      (when (and (= 1 (random 50)) ;;攻撃
 		(set-can-atk-dir e (* (w e) 3) (* (h e) 3)))
        (setf (atk-now e) t))
         ;;(set-enemy-atk e))
-     (update-enemy-anime-img e)
+     (update-ido-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
@@ -789,12 +794,11 @@
      (check-add-fire e 5 20))
     (t
      (incf (dir-c e)) ;;移動カウンター更新
-     (incf (walk-c e))
      (when (and (= 1 (random 50)) ;;攻撃
 		(set-can-atk-dir e (* (w e) 3) (* (h e) 3)))
        (setf (atk-now e) t))
         ;;(set-enemy-atk e))
-     (update-enemy-anime-img e)
+     (update-ido-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
@@ -877,15 +881,22 @@
     (select-object *hogememdc* (aref imgs (img *p*)))
     (trans-blt (x buki) (y buki) (moto-w buki) (moto-h buki) (w buki) (h buki))))
 
+(defun p-dir-num ()
+  (case (dir *p*)
+    (:up +up+)
+    (:down +down+)
+    (:left +left+)
+    (:right +right+)))
+ 
 ;;プレイヤー表示
 (defun render-player ()
   (when (atk-now *p*)
     (render-bukiorhammer *buki-imgs*))
   (when (hammer-now *p*)
     (render-bukiorhammer *hammer-imgs*))
-  (select-object *hogememdc* (aref *p-imgs* (img *p*)))
-  (trans-blt (x *p*) (y *p*) (moto-w *p*) (moto-h *p*)
-	     (w *p*) (h *p*)))
+  (select-object *hogememdc* *p-imgs*)
+  (new-trans-blt (x *p*) (y *p*) (* *p-w* (img *p*)) (* *p-h* (p-dir-num))
+		   (moto-w *p*) (moto-h *p*) (w *p*) (h *p*)))
 
 ;;ブロック描画
 (defun render-block ()

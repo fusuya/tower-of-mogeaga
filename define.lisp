@@ -26,10 +26,10 @@
 (defconstant +atk-l+ 3)
 (defconstant +atk-r+ 6)
 (defconstant +atk-u+ 9)
-(defconstant +down+ 12)
-(defconstant +left+ 13)
-(defconstant +right+ 14)
-(defconstant +up+ 15)
+(defconstant +down+ 0)
+(defconstant +left+ 2)
+(defconstant +right+ 3)
+(defconstant +up+ 1)
 
 ;;敵画像切り替えよう
 (defconstant +brigand-anime+ 0)
@@ -87,8 +87,7 @@
 (defparameter *copy-buki* (copy-tree *buki-d*))
 (defparameter *urawaza* nil)
 (defparameter *images* nil)
-(defparameter *anime-monsters-img* (load-image "./img/monsters.bmp" :type :bitmap
-					  :flags '(:load-from-file :create-dib-section)))
+(defparameter *anime-monsters-img* nil)
 
 (defparameter *atk-block-wav* "./wav/atk-block.wav")
 (defparameter *atk-enemy-wav* "./wav/atk-enemy.wav")
@@ -121,19 +120,12 @@
 (defparameter *fire-w/2* (floor *fire-w* 2))
 (defparameter *fire-h/2* (floor *fire-h* 2))
 
-;;元の上下向きプレイヤー画像のサイズ
-(defparameter *tate-w* 32)
-(defparameter *tate-h* 32)
-;;表示する上下向きプレイヤー画像サイズ
-(defparameter *tate-w/2* (floor *tate-w* 2))
-(defparameter *tate-h/2* (floor *tate-h* 2))
+;;プレイヤーのサイズ
+(defparameter *p-w* 24)
+(defparameter *p-h* 32)
+(defparameter *p-w/2* (floor *p-w* 2))
+(defparameter *p-h/2* (floor *p-h* 2))
 
-;;元の横向きのプレイヤー画像のサイズ
-(defparameter *yoko-w* 24)
-(defparameter *yoko-h* 32)
-;;表示する横向きプレイヤー画像サイズ
-(defparameter *yoko-w/2* (floor *yoko-w* 2))
-(defparameter *yoko-h/2* (floor *yoko-h* 2))
 
 
 (defparameter *w/2* (floor *obj-w* 2))
