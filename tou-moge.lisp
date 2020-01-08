@@ -34,22 +34,27 @@
   (delete-object-array *brush*))
 
 (defun delete-images ()
-  (delete-object-array *images*)
   (delete-object *p-imgs*)
+  (delete-object *objs-img*)
+  (delete-object *p-atk-img*)
   (delete-object-array *hammer-imgs*)
   (delete-object-array *monster-anime*)
   (delete-object *anime-monsters-img*)
-  (delete-object-array *buki-imgs*))
+  (delete-object *buki-img*))
 
 (defun load-images ()
-  (setf *images* (make-imgs-array "./img/img-*.*")
+  (setf *objs-img* (load-image "./img/objs-img2.bmp" :type :bitmap
+			     :flags '(:load-from-file :create-dib-section))
 	*p-imgs* (load-image "./img/p-ido-anime.bmp" :type :bitmap
+			     :flags '(:load-from-file :create-dib-section))
+	*p-atk-img* (load-image "./img/p-atk-anime.bmp" :type :bitmap
 			     :flags '(:load-from-file :create-dib-section))
 	*hammer-imgs* (make-imgs-array "./img/ham*.*")
 	*monster-anime* (make-imgs-array "./img/anime-*.*")
 	*anime-monsters-img* (load-image "./img/monsters.bmp" :type :bitmap
 					 :flags '(:load-from-file :create-dib-section))
-	*buki-imgs* (make-imgs-array "./img/buki*.*")))
+	*buki-img* (load-image "./img/buki-anime.bmp" :type :bitmap
+			     :flags '(:load-from-file :create-dib-section))))
 
 ;;ゲーム初期化
 (defun init-game ()
@@ -69,7 +74,7 @@
         *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 20
 			   :moto-w *p-w* :moto-h *p-h* :atk-now nil :ido-spd 2
 			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
-			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 3))
+			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 3 :w *p-w* :h *p-h* :moto-w *p-w* :moto-h *p-h* :w/2 *p-w/2* :h/2 *p-h/2* :img 0))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
   (maze *map* *p*))
 
@@ -244,77 +249,38 @@
 	 ;; 	   100 600))))
 
 
-;;通常時画像設定
-(defun set-normal-img (p)
-  (case (dir p)
-    (:down  (setf (img p) 1
-		  (w p) *p-w* (w/2 p) *tate-w/2*
-		  (h p) *p-h* (h/2 p) *tate-h/2*
-		  (moto-w p) *p-w* (moto-h p) *p-h*))
-    (:up    (setf (img p) 1
-		  (w p) *p-w* (w/2 p) *tate-w/2*
-		  (h p) *p-h* (h/2 p) *tate-h/2*
-		  (moto-w p) *p-w* (moto-h p) *p-h*))
-    (:left  (setf (img p) 1
-		  (w p) *p-w* (w/2 p) *yoko-w/2*
-		  (h p) *p-h* (h/2 p) *yoko-h/2*
-		  (moto-w p) *p-w* (moto-h p) *p-h*))
-    (:right (setf (img p) 1
-		  (w p) *p-w* (w/2 p) *yoko-w/2*
-		  (h p) *p-h* (h/2 p) *yoko-h/2*
-		  (moto-w p) *p-w* (moto-h p) *p-h*))))
-
 
 ;;武器の画像を設定
-(defun set-buki-img (p)
+(defun set-buki-pos (p)
   (with-slots (buki x y dir) p
     (case dir
-      (:down  (setf (moto-w buki) 32 (moto-h buki) 24
-		    (w buki) 32 (h buki) 34
-		    (w/2 buki) 16 (h/2 buki) 17
-		    (x buki) x
+      (:down  (setf (x buki) x
 		    (y buki) (+ y 20)))
-      (:up    (setf (moto-w buki) 32 (moto-h buki) 28
-		    (w buki) 32 (h buki) 34
-		    (w/2 buki) 16 (h/2 buki) 17
-		    (x buki) x
-		    (y buki) (- y 16)))
-      (:left  (setf (moto-w buki) 18 (moto-h buki) 32
-		    (w buki) 24 (h buki) 32
-		    (w/2 buki) 12 (h/2 buki) 16
-		    (x buki) (- x 18)
+      (:up    (setf (x buki) x
+		    (y buki) (- y 20)))
+      (:left  (setf (x buki) (- x 18)
 		    (y buki) y))
-      (:right (setf (moto-w buki) 18 (moto-h buki) 32
-		    (w buki) 24 (h buki) 32
-		    (w/2 buki) 12 (h/2 buki) 16
-		    (x buki) (+ x 18)
+      (:right (setf (x buki) (+ x 18)
 		    (y buki) y)))))
 
 ;;方向　キャラの攻撃画像
 (defun set-atk-img (p)
-  (case (dir p)
-    (:down  (setf (img p) (atk-img p)))
-    (:up    (setf (img p) (+ (atk-img p) +atk-u+)))
-    (:left  (setf (img p) (+ (atk-img p) +atk-l+)))
-    (:right (setf (img p) (+ (atk-img p) +atk-r+)))))
+  (setf (img p) 0))
 	    
 ;;攻撃画像更新
 (defun update-atk-img (p)
   (incf (atk-c p))
   (when (zerop (mod (atk-c p) (atk-spd p)))
-    (incf (atk-img p))
-    (set-atk-img p)
-    (when (and (>= 2 (atk-img p))
+    (incf (img p))
+    (when (and (>= 2 (img p))
 	       (null (atkhit p)))
       (buki-hit-enemy p)))
-  ;;(set-buki-img p)
-  (when (> (atk-img p) 2)
-    (set-normal-img p)
+  (when (> (img p) 2)
     (setf (atk-now p) nil
 	  (hammer-now p) nil
 	  (atk-c p) 0
 	  (atkhit p) nil
-	  (atk-img p) 0)))
+	  (img p) 0)))
 
 
 ;;壁壊す
@@ -354,12 +320,12 @@
     (cond
       (z
        (set-atk-img p)
-       (set-buki-img p)
+       (set-buki-pos p)
        (setf (atk-now p) t)
        (buki-hit-enemy p))
       (c
        (set-atk-img p)
-       (set-buki-img p)
+       (set-buki-pos p)
        (setf (hammer-now p) t)
        (hammer-hit-kabe p))
       (left
@@ -881,46 +847,68 @@
     (select-object *hogememdc* (aref imgs (img *p*)))
     (trans-blt (x buki) (y buki) (moto-w buki) (moto-h buki) (w buki) (h buki))))
 
+;;現在の方向
 (defun p-dir-num ()
   (case (dir *p*)
     (:up +up+)
     (:down +down+)
     (:left +left+)
     (:right +right+)))
+
+;;攻撃時の描画
+(defun render-p-atk ()
+  (with-slots (buki) *p*
+    (let ((dir (p-dir-num)))
+      (cond
+	((eq dir +down+)
+	 (select-object *hogememdc* *p-atk-img*)
+	 (new-trans-blt (x *p*) (y *p*) (* *p-w* (img *p*)) (* *p-h* dir)
+			(moto-w *p*) (moto-h *p*) (w *p*) (h *p*))
+	 (select-object *hogememdc* *buki-img*)
+	 (new-trans-blt (x buki) (y buki) (* *p-w* (img *p*)) (* *p-h* dir)
+			(moto-w buki) (moto-h buki) (w buki) (h buki)))
+	(t
+	 (select-object *hogememdc* *buki-img*)
+	 (new-trans-blt (x buki) (y buki) (* *p-w* (img *p*)) (* *p-h* dir)
+			(moto-w buki) (moto-h buki) (w buki) (h buki))
+	 (select-object *hogememdc* *p-atk-img*)
+	 (new-trans-blt (x *p*) (y *p*) (* *p-w* (img *p*)) (* *p-h* dir)
+			(moto-w *p*) (moto-h *p*) (w *p*) (h *p*)))))))
  
 ;;プレイヤー表示
 (defun render-player ()
-  (when (atk-now *p*)
-    (render-bukiorhammer *buki-imgs*))
-  (when (hammer-now *p*)
-    (render-bukiorhammer *hammer-imgs*))
-  (select-object *hogememdc* *p-imgs*)
-  (new-trans-blt (x *p*) (y *p*) (* *p-w* (img *p*)) (* *p-h* (p-dir-num))
-		   (moto-w *p*) (moto-h *p*) (w *p*) (h *p*)))
+  (cond
+    ((atk-now *p*)
+     (render-p-atk))
+    ((hammer-now *p*)
+     (render-bukiorhammer *hammer-imgs*))
+    (t
+     (select-object *hogememdc* *p-imgs*)
+     (new-trans-blt (x *p*) (y *p*) (* *p-w* (img *p*)) (* *p-h* (p-dir-num))
+		    (moto-w *p*) (moto-h *p*) (w *p*) (h *p*)))))
+
+;;*objs-img*の描画
+(defun render-objs-img (obj)
+  (select-object *hogememdc* *objs-img*)
+  (new-trans-blt (x obj) (y obj) (* (moto-w obj) (img obj)) 0
+		 (moto-w obj) (moto-h obj) (w obj) (h obj)))
+
+
 
 ;;ブロック描画
 (defun render-block ()
   (loop for obj in (donjon-blocks *map*)
-     do
-       (select-object *hogememdc* (aref *images* (img obj)))
-       (trans-blt (x obj) (y obj) (moto-w obj) (moto-h obj)
-		  (w obj) (h obj))))
+     do (render-objs-img obj)))
 
 ;;床描画
 (defun render-yuka ()
   (loop for obj in (donjon-yuka *map*)
-     do
-       (select-object *hogememdc* (aref *images* (img obj)))
-       (trans-blt (x obj) (y obj) (moto-w obj) (moto-h obj)
-		  (w obj) (h obj))))
+     do (render-objs-img obj)))
 
 ;;鍵とか描画
 (defun render-item ()
   (loop for obj in (donjon-objects *map*)
-     do
-       (select-object *hogememdc* (aref *images* (img obj)))
-       (trans-blt (x obj) (y obj) (moto-w obj) (moto-h obj)
-		  (w obj) (h obj))))
+     do (render-objs-img obj)))
 
 ;;プレイヤーのステータス表示
 (defun render-p-status ()
@@ -943,11 +931,13 @@
   (text-out *hmemdc* (format nil "持ち物") 10 (+ *map-h* 40))
   (loop for item in (item *p*)
      for i from 0 do
-       (select-object *hogememdc* (aref *images* (img item)))
-       (trans-blt (+ 10 (* i 36)) (+ *map-h* 80) 32 32 32 32))
+       (select-object *hogememdc* *objs-img*)
+       (new-trans-blt (+ 10 (* i 36)) (+ *map-h* 80) (* (moto-w item) (img item)) 0
+		 (moto-w item) (moto-h item) (w item) (h item)))
   (when (key? *p*)
-    (select-object *hogememdc* (aref *images* +key+))
-    (trans-blt 10 (+ *map-h* 120) *obj-w* *obj-h* *obj-w* *obj-h*)))
+    (select-object *hogememdc* *objs-img*)
+    (new-trans-blt 10 (+ *map-h* 120) (* *obj-w* +key+) 0
+		   32 32 32 32)))
 
 
 ;;バックグラウンド
