@@ -17,9 +17,11 @@
     imgs))
 
 (defparameter *p-imgs* nil)
-(defparameter *buki-imgs* nil)
+(defparameter *p-atk-img* nil)
+(defparameter *buki-img* nil)
 (defparameter *hammer-imgs* nil)
 (defparameter *monster-anime* nil)
+(defparameter *objs-img* nil)
 
 ;;プレイヤー画像切り替えよう
 (defconstant +atk-d+ 0)
@@ -179,7 +181,7 @@
 (defparameter *kabe-break* nil)
 (defparameter *HPbar-max* 40)
 
-(my-enum +boots+ +brigand+ +door+ +dragon+ +hammer+ +hard-block+ +hydra+ +key+ +yote1+ +orc+ +potion+ +slime+ +soft-block+ +yuka+ +yusha+)
+(my-enum +boots+ +door+ +hammer+ +hard-block+ +key+ +potion+ +soft-block+ +yuka+)
 
 (my-enum +purple+ +red+ +green+ +blue+ +yellow+ +cyan+ +pink+ )
 
