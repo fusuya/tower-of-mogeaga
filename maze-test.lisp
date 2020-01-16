@@ -189,32 +189,32 @@
   (case e-type
     (:slime   (create-enemy e-type e-pos
 			    (+ 6 (floor (random (stage *p*)) 2))
-			    (+ 1 (floor (random (stage *p*)) 3))
-			    (+ 1 (floor (random (stage *p*)) 3))
+			    (+ 1 (floor (random (stage *p*)) 2))
+			    (+ 1 (floor (random (stage *p*)) 2))
 			    (+ 3 (floor (random (stage *p*)) 3))
 			    1))
     (:orc     (create-enemy e-type e-pos
 			    (+ 10 (floor (random (stage *p*)) 2))
-			    (+ 4 (floor (random (stage *p*)) 2))
-			    (+ 1 (floor (random (stage *p*)) 3))
+			    (+ 4 (floor (random (stage *p*)) 1.3))
+			    (+ 1 (floor (random (stage *p*)) 1.4))
 			    (+ 5 (floor (random (stage *p*)) 2))
 			    1))
     (:brigand (create-enemy e-type e-pos
-			    (+ 6 (floor (random (stage *p*)) 2))
-			    (+ 2 (floor (random (stage *p*)) 3))
-			    (+ 2 (floor (random (stage *p*)) 3))
+			    (+ 6 (floor (random (stage *p*)) 1.2))
+			    (+ 2 (floor (random (stage *p*)) 2))
+			    (+ 2 (floor (random (stage *p*)) 2))
 			    (+ 7 (floor (random (stage *p*)) 2))
 			    2))
     (:hydra   (create-enemy e-type e-pos
 			    (+ 12 (floor (random (stage *p*)) 1))
-			    (+ 2 (floor (random (stage *p*)) 3))
-			    (+ 5 (floor (random (stage *p*)) 2))
+			    (+ 2 (floor (random (stage *p*)) 2))
+			    (+ 5 (floor (random (stage *p*)) 1.3))
 			    (+ 10 (floor (random (stage *p*)) 2))
 			    1))
     (:dragon  (create-enemy e-type e-pos
-			    (+ 20 (floor (random (stage *p*)) 2))
-			    (+ 5 (floor (random (stage *p*)) 2))
-			    (+ 6 (floor (random (stage *p*)) 2))
+			    (+ 20 (floor (random (stage *p*)) 1.4))
+			    (+ 5 (floor (random (stage *p*)) 1.3))
+			    (+ 6 (floor (random (stage *p*)) 1.3))
 			    (+ 20 (floor (random (stage *p*)) 2))
 			    2))
     (:yote1   (create-enemy e-type e-pos 3 3 50 300 20))))
@@ -226,8 +226,8 @@
 	 (let* ((e-pos (nth (random (length (donjon-path map))) (donjon-path map)))
 		(e-type (appear-enemy))
 		(e (create-enemies e-pos e-type)))
-	   (when (= i 0)
-	     (setf (drop e) (drop-item-type map)))
+	   ;;(when (= i 0) ;;固定ドロップ設定
+	   ;;  (setf (drop e) (drop-item-type map)))
 	   (push e (donjon-enemies map))
 	   (setf (donjon-path *map*)
 		 (remove e-pos (donjon-path *map*) :test #'equal))))))
@@ -238,7 +238,7 @@
 	 (boss (make-instance 'enemy :x (* (car e-pos) *blo-w46*)
 			      :y (* (cadr e-pos) *blo-h46*)
 			      :moto-w 64 :moto-h 64
-			      :str 50 :def 20 :hp 100 :maxhp 100
+			      :str 40 :def 20 :hp 100 :maxhp 100
 			      :ido-spd 2 :expe 0
 			      :w 64 :h 64
 			      :w/2 32 :h/2 32
