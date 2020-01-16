@@ -1,6 +1,5 @@
-;;TODO  アイテムの種類を増やす
+;;TODO 
 ;;ボスの攻撃
-;;画像整理
 
 ;;ブラシ生成
 (defun set-brush ()
@@ -17,7 +16,7 @@
 (defun set-font ()
   (setf *font140* (create-font "MSゴシック" :height 140)
         *font40* (create-font "MSゴシック" :height 40)
-	*font30* (create-font "MSゴシック" :height 32)
+	*font30* (create-font "MSゴシック" :height 22 :width 9)
         *font20* (create-font "MSゴシック" :height 25 :width 12 :weight (const +fw-bold+))))
 
 (defun delete-font ()
@@ -34,23 +33,22 @@
   (delete-object-array *brush*))
 
 (defun delete-images ()
-  (delete-object *p-imgs*)
+  (delete-object *p-img*)
   (delete-object *objs-img*)
   (delete-object *p-atk-img*)
-  (delete-object-array *hammer-imgs*)
-  (delete-object-array *monster-anime*)
+  (delete-object *hammer-img*)
   (delete-object *anime-monsters-img*)
   (delete-object *buki-img*))
 
 (defun load-images ()
   (setf *objs-img* (load-image "./img/objs-img2.bmp" :type :bitmap
 			     :flags '(:load-from-file :create-dib-section))
-	*p-imgs* (load-image "./img/p-ido-anime.bmp" :type :bitmap
+	*p-img* (load-image "./img/p-ido-anime.bmp" :type :bitmap
 			     :flags '(:load-from-file :create-dib-section))
 	*p-atk-img* (load-image "./img/p-atk-anime.bmp" :type :bitmap
 			     :flags '(:load-from-file :create-dib-section))
-	*hammer-imgs* (make-imgs-array "./img/ham*.*")
-	*monster-anime* (make-imgs-array "./img/anime-*.*")
+	*hammer-img* (load-image "./img/hammer-anime.bmp" :type :bitmap
+			     :flags '(:load-from-file :create-dib-section))
 	*anime-monsters-img* (load-image "./img/monsters.bmp" :type :bitmap
 					 :flags '(:load-from-file :create-dib-section))
 	*buki-img* (load-image "./img/buki-anime.bmp" :type :bitmap
@@ -70,11 +68,10 @@
         *end* 0
         *start-time* (get-internal-real-time)
         *ha2ne2* nil
-        *copy-buki* (copy-tree *buki-d*)
-        *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 20
+        *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 30
 			   :moto-w *p-w* :moto-h *p-h* :atk-now nil :ido-spd 2
-			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
-			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 3 :w *p-w* :h *p-h* :moto-w *p-w* :moto-h *p-h* :w/2 *p-w/2* :h/2 *p-h/2* :img 0))
+			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2) :hammer 3
+			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 1 :w *p-w* :h *p-h* :moto-w *p-w* :moto-h *p-h* :w/2 *p-w/2* :h/2 *p-h/2* :img 0))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
   (maze *map* *p*))
 
@@ -118,6 +115,12 @@
 
 (defun randval (n)
   (1+ (random n)))
+
+(defun rand+- (n)
+  (let ((a (1+ (random n))))
+    (if (= (random 2) 1)
+	a
+	(- a))))
 
 ;;'(:up :down :right :left)
 (defun rand-dir (lst new-lst)
@@ -167,10 +170,24 @@
 	    (setf (hp *p*) (maxhp *p*)
 		  (donjon-objects *map*)
 		  (remove obj (donjon-objects *map*) :test #'equal)))
+	   (:sword
+	    (with-slots (buki) *p*
+	      (sound-play *get-item-wav*)
+	      (setf (donjon-objects *map*)
+		    (remove obj (donjon-objects *map*) :test #'equal))
+	      (when (> *buki-list-len* (atk buki))
+		(setf (name buki) (nth (atk buki) *buki-list*))
+		(incf (atk buki))))) ;;武器の攻撃力は１づつ上がる))
+	   (:hammer
+	    (sound-play *get-item-wav*)
+	    (incf (hammer *p*))
+	    (setf (donjon-objects *map*)
+		  (remove obj (donjon-objects *map*) :test #'equal)))
 	   (:boots
 	    (sound-play *get-item-wav*)
 	    (push obj (item *p*))
 	    (setf (ido-spd *p*) 3 ;;移動速度アップ
+		  (boots? *p*) t
 		  (donjon-objects *map*)
 		  (remove obj (donjon-objects *map*) :test #'equal)))
 	   (:door
@@ -236,7 +253,7 @@
     (with-slots (buki) p
       (loop for e in (donjon-enemies *map*)
 	 do (case (obj-type e)
-	      ((:slime :orc :hydra :dragon :brigand :briball :yote1)
+	      ((:slime :orc :hydra :dragon :brigand :briball :yote1 :toge :boss)
 	       (when (and (obj-hit-p buki e)
 			  (null (dead e)))
 		 (sound-play *atk-enemy-wav*)
@@ -286,13 +303,16 @@
 ;;壁壊す
 (defun hammer-hit-kabe (p)
   (with-slots (buki) p
-    (loop for kabe in (donjon-blocks *map*)
-       do (when (and (obj-hit-p buki kabe)
-		     (eq (obj-type kabe) :soft-block))
-	    (sound-play *atk-block-wav*)
-	    (setf (obj-type kabe) :yuka
-		  (img kabe) +yuka+)
-	    ))))
+    (let ((hit? nil))
+      (loop for kabe in (donjon-blocks *map*)
+	 do (when (and (obj-hit-p buki kabe)
+		       (eq (obj-type kabe) :soft-block))
+	      (setf hit? t)
+	      (setf (obj-type kabe) :yuka
+		    (img kabe) +yuka+)))
+      (when hit?
+	(sound-play *atk-block-wav*)
+	(decf (hammer *p*))))))
 
 ;;画像右側めりこみ判定
 (defun merikomi-hantei (p)
@@ -323,7 +343,7 @@
        (set-buki-pos p)
        (setf (atk-now p) t)
        (buki-hit-enemy p))
-      (c
+      ((and c (> (hammer *p*) 0))
        (set-atk-img p)
        (set-buki-pos p)
        (setf (hammer-now p) t)
@@ -612,7 +632,7 @@
 ;;ブリガンドのボール追加
 (defun add-bri-ball (e dx dy)
   (let ((ball (make-instance 'enemy :img 0 :obj-type :briball
-			     :moto-w 20 :moto-h 20 :dir (dir e)
+			     :moto-w 32 :moto-h 32 :dir (dir e)
 			     :str (str e) :maxhp 1 :hp 1 :def 0
 			     :w 16 :h 16 :w/2 8 :h/2 8)))
     (setf (x ball) (- (x e) dx)
@@ -634,7 +654,7 @@
 (defun update-brigand (e)
   (incf (dir-c e)) ;;移動カウンター更新
   (update-ido-anime-img e)
-  (when (and (= 1 (random 90)) ;;攻撃
+  (when (and (= 1 (random 150)) ;;攻撃
 	     (set-can-atk-dir e 600 600))
     (add-bri-ball-dir e))
   (if (> (dir-c e) 40)
@@ -753,23 +773,62 @@
     (setf (donjon-enemies *map*)
 	  (remove e (donjon-enemies *map*) :test #'equal))))
 
+;;ボスのとげ攻撃
+(defun boss-toge-atk (e)
+  (let ((toge (make-instance 'enemy :img 0 :obj-type :toge :hp 1 :maxhp 1
+			     :str (str e) :x (x e) :y (+ (y e) (h e))
+			     :moto-w *fire-w* :moto-h *fire-h* :vx (rand+- 3) :vy (rand+- 3)
+			     :w *fire-w* :h *fire-h* :w/2 *fire-w/2* :h/2 *fire-h/2*)))
+    (push toge (donjon-enemies *map*))
+    (setf (atk-now e) nil
+	  (atk-c e) 0)))
+
 ;;ボスの行動
 (defun update-boss (e)
   (cond
-    ((atk-now e)
+    ((eq (atk-now e) :fire)
      (check-add-fire e 5 20))
+    ((eq (atk-now e) :toge)
+     (boss-toge-atk e))
     (t
      (incf (dir-c e)) ;;移動カウンター更新
-     (when (and (= 1 (random 50)) ;;攻撃
-		(set-can-atk-dir e (* (w e) 3) (* (h e) 3)))
-       (setf (atk-now e) t))
+     (let ((ran (random 70)))
+     (cond
+       ((and (= 1 ran) ;;攻撃
+	     (set-can-atk-dir e (* (w e) 3) (* (h e) 3)))
+	(setf (atk-now e) :fire))
+       ((= ran 2)
+	(setf (atk-now e) :toge)))
         ;;(set-enemy-atk e))
      (update-ido-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
-	 (update-enemy-pos e)))))
-    
+	 (update-enemy-pos e))))))
+
+;;ボスのとげ攻撃の更新
+(defun update-toge (e)
+  (incf (x e) (vx e))
+  (incf (y e) (vy e))
+  (incf (atk-c e))
+  (if (>= (atk-c e) 500)
+      (setf (donjon-enemies *map*)
+	    (remove e (donjon-enemies *map*) :test #'equal))
+      (when (block-hit-p e)
+	(let ((vx0 (vx e))
+	      (vy0 (vy e)))
+	  (cond
+	    ((>= *blo-w46* (x e))
+	     (setf (vx e) (- (vx e))))
+	    ((>= (+ (x e) (w e)) (- *map-w* *blo-w46*))
+	     (setf (vx e) (- (vx e))))
+	    ((<= (y e) *blo-h46*)
+	     (setf (vy e) (- (vy e))))
+	    ((>= (+ (y e) (h e)) (- *map-h* *blo-h46*))
+	     (setf (vy e) (- (vy e)))))
+	  (decf (x e) vx0)
+	  (decf (y e) vy0)))))
+	      
 
 ;;敵の位置更新
 (defun update-enemies ()
@@ -785,6 +844,7 @@
 	    (:briball (update-briball e))
 	    (:orc     (update-orc e))
 	    (:yote1   (update-slime e 10))
+	    (:toge    (update-toge e))
 	    (:boss    (update-boss e))
 	    (:orc-atk (update-orc-atk-effect e))))))
 
@@ -828,24 +888,11 @@
 	  (:yote1 (render-enemy e +yote-anime+))
 	  (:orc   (render-enemy e +orc-anime+))
 	  (:orc-atk (render-enemy e +orc-atk+))
+	  (:toge (render-enemy e +boss-atk1+))
 	  (:boss (render-enemy e +boss-anime+)))))
 
 
 
-;;攻撃時の武器表示
-(defun render-buki ()
-  (with-slots (buki) *p*
-    (select-object *hogememdc* (aref *buki-imgs* (img *p*)))
-    (transparent-blt *hmemdc* (x buki) (y buki) *hogememdc* 0 0
-		     :width-source (moto-w buki) :height-source (moto-h buki)
-		     :width-dest (w buki) :height-dest (h buki)
-		     :transparent-color (encode-rgb 0 255 0))))
-
-;;ハンマー表示
-(defun render-bukiorhammer (imgs)
-  (with-slots (buki) *p*
-    (select-object *hogememdc* (aref imgs (img *p*)))
-    (trans-blt (x buki) (y buki) (moto-w buki) (moto-h buki) (w buki) (h buki))))
 
 ;;現在の方向
 (defun p-dir-num ()
@@ -856,7 +903,7 @@
     (:right +right+)))
 
 ;;攻撃時の描画
-(defun render-p-atk ()
+(defun render-p-atk (atk-img)
   (with-slots (buki) *p*
     (let ((dir (p-dir-num)))
       (cond
@@ -864,11 +911,11 @@
 	 (select-object *hogememdc* *p-atk-img*)
 	 (new-trans-blt (x *p*) (y *p*) (* *p-w* (img *p*)) (* *p-h* dir)
 			(moto-w *p*) (moto-h *p*) (w *p*) (h *p*))
-	 (select-object *hogememdc* *buki-img*)
+	 (select-object *hogememdc* atk-img)
 	 (new-trans-blt (x buki) (y buki) (* *p-w* (img *p*)) (* *p-h* dir)
 			(moto-w buki) (moto-h buki) (w buki) (h buki)))
 	(t
-	 (select-object *hogememdc* *buki-img*)
+	 (select-object *hogememdc* atk-img)
 	 (new-trans-blt (x buki) (y buki) (* *p-w* (img *p*)) (* *p-h* dir)
 			(moto-w buki) (moto-h buki) (w buki) (h buki))
 	 (select-object *hogememdc* *p-atk-img*)
@@ -879,11 +926,11 @@
 (defun render-player ()
   (cond
     ((atk-now *p*)
-     (render-p-atk))
+     (render-p-atk *buki-img*))
     ((hammer-now *p*)
-     (render-bukiorhammer *hammer-imgs*))
+     (render-p-atk *hammer-img*))
     (t
-     (select-object *hogememdc* *p-imgs*)
+     (select-object *hogememdc* *p-img*)
      (new-trans-blt (x *p*) (y *p*) (* *p-w* (img *p*)) (* *p-h* (p-dir-num))
 		    (moto-w *p*) (moto-h *p*) (w *p*) (h *p*)))))
 
@@ -912,32 +959,46 @@
 
 ;;プレイヤーのステータス表示
 (defun render-p-status ()
-  (select-object *hmemdc* *font30*)
-  (set-text-color *hmemdc* (encode-rgb 255 255 255))
-  (set-bk-mode *hmemdc* :transparent)
-  (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) 10)
-  (text-out *hmemdc* (format nil "Lv:~2d" (level *p*)) (+ *map-w* 10) 50)
-  (text-out *hmemdc* (format nil "HP:~2d/~2d" (hp *p*) (maxhp *p*)) (+ *map-w* 10) 90)
-  (text-out *hmemdc* (format nil "攻:~2d" (str *p*)) (+ *map-w* 10) 130)
-  (text-out *hmemdc* (format nil "防:~2d" (def *p*)) (+ *map-w* 10) 170)
-  (text-out *hmemdc* (format nil "exp") (+ *map-w* 10) 210)
-  (text-out *hmemdc* (format nil "~3d/~3d" (expe *p*) (lvup-exp *p*)) (+ *map-w* 10) 250)
-  (text-out *hmemdc* (format nil "ハンマー") (+ *map-w* 10) 290)
-  (text-out *hmemdc* (format nil "残り:~d回" (hammer *p*)) (+ *map-w* 10) 330)
-  
-  ;;(text-out *hmemdc* (format nil "w:~2d" *change-screen-w*) (+ *map-w* 10) 250)
-  ;;(text-out *hmemdc* (format nil "h:~2d" *change-screen-h*) (+ *map-w* 10) 290)
-  (text-out *hmemdc* (format nil "モゲアーガの塔 ~2,'0d階" (stage *p*)) 10 (+ *map-h* 10))
-  (text-out *hmemdc* (format nil "持ち物") 10 (+ *map-h* 40))
-  (loop for item in (item *p*)
-     for i from 0 do
-       (select-object *hogememdc* *objs-img*)
-       (new-trans-blt (+ 10 (* i 36)) (+ *map-h* 80) (* (moto-w item) (img item)) 0
-		 (moto-w item) (moto-h item) (w item) (h item)))
-  (when (key? *p*)
-    (select-object *hogememdc* *objs-img*)
-    (new-trans-blt 10 (+ *map-h* 120) (* *obj-w* +key+) 0
-		   32 32 32 32)))
+  (let* ((num 10)
+	(time1 (get-internal-real-time))
+	(s (floor (- time1 *start-time*) 1000)))
+    (multiple-value-bind (m s) (floor s 60)
+      
+    (macrolet ((hoge (n)
+		 `(incf ,n 25)))
+      (select-object *hmemdc* *font30*)
+      (set-text-color *hmemdc* (encode-rgb 255 255 255))
+      (set-bk-mode *hmemdc* :transparent)
+      (text-out *hmemdc* (format nil "~2,'0d:~2,'0d" m s) (+ *map-w* 10) num)
+      (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "Lv:~2d" (level *p*)) (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "HP:~2d/~2d" (hp *p*) (maxhp *p*)) (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "攻:~2d" (str *p*)) (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "防:~2d" (def *p*)) (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "exp") (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "~3d/~3d" (expe *p*) (lvup-exp *p*)) (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "ハンマー") (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "残り:~d回" (hammer *p*)) (+ *map-w* 10) (hoge num))
+      (hoge num)
+      (text-out *hmemdc* (format nil "武器") (+ *map-w* 10) (hoge num))
+      (with-slots (buki) *p*
+	(text-out *hmemdc* (format nil "~a" (name buki)) (+ *map-w* 10) (hoge num))
+	(text-out *hmemdc* (format nil "攻:~d" (atk buki)) (+ *map-w* 10) (hoge num)))
+      (hoge num)
+      (text-out *hmemdc* (format nil "持ち物") (+ *map-w* 10) (hoge num))
+      (loop for item in (item *p*)
+	 for i from 0 do
+	   (select-object *hogememdc* *objs-img*)
+	   (new-trans-blt (+ *map-w* 10) (hoge num) (* (moto-w item) (img item)) 0
+			  (moto-w item) (moto-h item) (w item) (h item)))
+      (when (key? *p*)
+	(select-object *hogememdc* *objs-img*)
+	(new-trans-blt (+ *map-w* 10) (hoge num) (* *obj-w* +key+) 0
+		       32 32 32 32))
+      ;;(text-out *hmemdc* (format nil "w:~2d" *change-screen-w*) (+ *map-w* 10) 250)
+      ;;(text-out *hmemdc* (format nil "h:~2d" *change-screen-h*) (+ *map-w* 10) 290)
+      (text-out *hmemdc* (format nil "モゲアーガの塔 ~2,'0d階" (stage *p*)) 10 (+ *map-h* 10))
+     ))))
 
 
 ;;バックグラウンド
@@ -1045,18 +1106,40 @@
   (case item
     (:boots +boots+)
     (:potion +potion+)
-    (:hammer1 +hammer+)))
+    (:hammer +hammer+)
+    (:sword +sword+)))
+
+;;通常のドロップアイテム
+(defun normal-drop-item ()
+  (let* ((n (random 100)))
+    (cond
+      ((>= 5 n 0)   :boots)
+      ((>= 25 n 6)  :potion)
+      ((>= 45 n 26) :hammer)
+      ((>= 51  n 46) :sword)
+      (t nil))))
+
+;;靴持ってる時のドロップアイテム
+(defun no-boots-drop-item ()
+  (let* ((n (random 100)))
+    (cond
+      ((>= 25 n 0)  :potion)
+      ((>= 45 n 26) :hammer)
+      ((>= 51  n 46) :sword)
+      (t nil))))
 
 ;;アイテムの靴を落とす
 (defun enemy-drop-item (e)
-  (let ((item (drop e)))
+  (let* ((item (if (boots? *p*)
+		   (no-boots-drop-item)
+		   (normal-drop-item))))
     (when item
       (let ((drop-item (make-instance 'obj :img (item-img item)
 				      :x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
 				      :moto-w 32 :moto-h 32 :obj-type item)))
-	(push drop-item (donjon-objects *map*))
-	(setf (donjon-drop-item *map*) (cdr (donjon-drop-item *map*)))))))
-	;; (when (>= (random 5) 3)
+	(push drop-item (donjon-objects *map*))))))
+	;;(setf (donjon-drop-item *map*) (cdr (donjon-drop-item *map*)))))))
+;; (when (>= (random 5) 3)
 	;;   (let ((drop-item (make-instance 'obj :img +potion+ 
 	;; 				:x (x e) :y (y e) :w 32 :h 32 :w/2 16 :h/2 16
 	;; 				:moto-w 32 :moto-h 32 :obj-type :potion)))
@@ -1160,7 +1243,8 @@
 
 ;;メイン
 (defun moge ()
-  (setf *random-state* (make-random-state t))
+  (setf *random-state* (make-random-state t)
+	*start-time* (get-internal-real-time))
   (register-class "MOGE" (callback moge-wndproc)
 		  :styles (logior-consts +cs-hredraw+ +cs-vredraw+)
                   :cursor (load-cursor :arrow)
