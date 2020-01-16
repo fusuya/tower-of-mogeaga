@@ -16,18 +16,14 @@
                                :flags '(:load-from-file :create-dib-section))))
     imgs))
 
-(defparameter *p-imgs* nil)
+(defparameter *p-img* nil)
 (defparameter *p-atk-img* nil)
 (defparameter *buki-img* nil)
-(defparameter *hammer-imgs* nil)
+(defparameter *hammer-img* nil)
 (defparameter *monster-anime* nil)
 (defparameter *objs-img* nil)
 
 ;;プレイヤー画像切り替えよう
-(defconstant +atk-d+ 0)
-(defconstant +atk-l+ 3)
-(defconstant +atk-r+ 6)
-(defconstant +atk-u+ 9)
 (defconstant +down+ 0)
 (defconstant +left+ 2)
 (defconstant +right+ 3)
@@ -40,11 +36,12 @@
 (defconstant +yote-anime+ 3)
 (defconstant +orc-anime+ 4)
 (defconstant +slime-anime+ 5)
-(defconstant +boss-anime+ 6)
-(defconstant +hydra-atk+ 21)
-(defconstant +brigand-ball+ 22)
-(defconstant +dragon-fire+ 23)
-(defconstant +orc-atk+ 24)
+(defconstant +boss-anime+ 11)
+(defconstant +hydra-atk+ 6)
+(defconstant +brigand-ball+ 7)
+(defconstant +dragon-fire+ 8)
+(defconstant +orc-atk+ 9)
+(defconstant +boss-atk1+ 10)
 
 ;;敵の攻撃演出時間
 (defparameter *orc-atk-effect-time* 30)
@@ -86,7 +83,6 @@
 (defparameter *lv-exp* 100)
 (defparameter *start-time* 0)
 (defparameter *ha2ne2* nil)
-(defparameter *copy-buki* (copy-tree *buki-d*))
 (defparameter *urawaza* nil)
 (defparameter *images* nil)
 (defparameter *anime-monsters-img* nil)
@@ -148,8 +144,8 @@
 (defparameter *map-w* (* *yoko-block-num* *blo-w46*))
 (defparameter *map-h* (* *tate-block-num* *blo-h46*))
 ;;プレイヤーのステータス表示用領域サイズ
-(defparameter *status-w* 160)
-(defparameter *status-h* 210)
+(defparameter *status-w* 120)
+(defparameter *status-h* 100)
 
 
 (defparameter *screen-w* (+ *map-w* *status-w*))
@@ -160,8 +156,10 @@
 
 (defparameter *waku-size* 10) ;;ゲームフィールドの周りの枠太さ
 (defparameter *c-rect* nil) ;;クライアント領域
-(defparameter *p* nil)
-(defparameter *e* nil)
+
+(defparameter *start-time* 0)
+
+
 
 ;;画面領域
 (defparameter *client-w* (+ *map-w* 150))
@@ -181,7 +179,7 @@
 (defparameter *kabe-break* nil)
 (defparameter *HPbar-max* 40)
 
-(my-enum +boots+ +door+ +hammer+ +hard-block+ +key+ +potion+ +soft-block+ +yuka+)
+(my-enum +boots+ +door+ +hammer+ +hard-block+ +key+ +potion+ +soft-block+ +yuka+ +sword+)
 
 (my-enum +purple+ +red+ +green+ +blue+ +yellow+ +cyan+ +pink+ )
 
@@ -198,29 +196,10 @@
 
 (defparameter *keystate* (make-instance 'keystate))
 
-(defparameter *orc-name*
-  '("オークピー" "トンヌラ" "ブタピー" "オークタン" "コブタ" "ほげぞう" "オオオーク"
-    "最終皇帝" "ブヒブヒ" "たけし" "オークデビル" "イノシシ" "茨城オーク"))
-
-(defparameter *slime-name*
-  '("スラリソ" "ヌルリン" "ベチョリン" "ベトリン" "デロデロ" "ヌルイム" "ズラリン"
-    "ケロリン" "群馬スライム" "まさし" "スラぞう"))
-
-(defparameter *hydra-name*
-  '("ヒードラ" "よしひこ" "ヘビリン" "へびぞう" "スゴイヘビ" "キングギドラ" "ヘビックス"
-    "ヤマダノ" "オロチ" "ハイドラ" "ドラタロウ" "にしきのくん" "パイソン"))
-
-(defparameter *brigand-name*
-  '("サンゾク" "ムナゲ" "ヒザゲ" "ワキゲ" "アラサー" "ぶりぶり" "ガンドー" "ケツゲ"
-    "やわ毛" "バリカタ" "親方" "ヒゲガンド" "うす毛" "カンダタ" "ブリトニー"))
-
-(defparameter *yote1-name*
-  '("ヨテイチ" "メタイチ" "うなぎ" "ナニモシナイ"))
-
 
 ;;ドロップアイテムリスト
 (defparameter *drop-item*
-  '(:boots :potion :hammer1 :potion ))
+  '(:boots :atkup :defup))
 
 (defstruct donjon
   (map nil)  ;;マップ
@@ -291,7 +270,8 @@
   ((centerx      :accessor centerx    :initform 30  :initarg :centerx)
    (centery      :accessor centery    :initform 30  :initarg :centery)
    (drop         :accessor drop       :initform nil :initarg :drop)    ;;ドロップするアイテム
-   
+   (vx           :accessor vx         :initform 2   :initarg :vx)
+   (vy           :accessor vy         :initform 2   :initarg :vy)
    (deg          :accessor deg        :initform 10  :initarg :deg)))
 
 ;;プレイヤー用
@@ -301,7 +281,7 @@
    (name       :accessor name        :initform nil :initarg :name)     ;;名前
    (hammer     :accessor hammer      :initform 0   :initarg :hammer)   ;;所持ハンマー
    (buki       :accessor buki        :initform nil :initarg :buki)     ;;武器
-   (tower-lv   :accessor tower-lv    :initform 1   :initarg :tower-lv) ;;現在の階層
+   (boots?     :accessor boots?      :initform nil :initarg :boots?) ;;現在の階層
    (hammer-now :accessor hammer-now  :initform nil :initarg :hammer-now) ;;ハンマー中か
    (item       :accessor item        :initform nil :initarg :item)     ;;所持アイテム
    (stage      :accessor stage       :initform 1   :initarg :stage)    ;;プレイヤーのいる階層
