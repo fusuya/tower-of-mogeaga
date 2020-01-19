@@ -15,6 +15,8 @@
 
 (defun set-font ()
   (setf *font140* (create-font "MSゴシック" :height 140)
+	*font90* (create-font "MSゴシック" :height 90)
+	*font70* (create-font "MSゴシック" :height 70)
         *font40* (create-font "MSゴシック" :height 40)
 	*font30* (create-font "MSゴシック" :height 22 :width 9)
         *font20* (create-font "MSゴシック" :height 25 :width 12 :weight (const +fw-bold+))))
@@ -61,15 +63,9 @@
 	*screen-h* (+ *map-h* *status-h*)
 	*mag-w* 1
 	*mag-h* 1
-        *ido?* t
-        *monster-num* 6
-        *monster-level* 1
-        *boss?* 0
-        *end* 0
         *start-time* (get-internal-real-time)
-        *ha2ne2* nil
-        *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 30
-			   :moto-w *p-w* :moto-h *p-h* :atk-now nil :ido-spd 2
+        *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 1 :state :title
+			   :moto-w *p-w* :moto-h *p-h* :atk-now nil :ido-spd 2 :level 10
 			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2) :hammer 3
 			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 1 :w *p-w* :h *p-h* :moto-w *p-w* :moto-h *p-h* :w/2 *p-w/2* :h/2 *p-h/2* :img 0))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
@@ -112,7 +108,15 @@
 	(:keyc (setf c nil))
         (:keyz (setf z nil))))))
 
+;;時間変換
+(defun get-hms (n)
+  (multiple-value-bind (h m1) (floor n 3600000)
+    (multiple-value-bind (m s1) (floor m1 60000)
+      (multiple-value-bind (s ms1) (floor s1 1000)
+	(multiple-value-bind (ms) (floor ms1 10)
+	  (values h m s ms))))))
 
+;;1以上のランダムな数
 (defun randval (n)
   (1+ (random n)))
 
@@ -195,7 +199,6 @@
 	      (sound-play *door-wav*)
 	      (incf (stage *p*))
 	      (setf (key? *p*) nil)
-	      ;;(setf *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
 	      (maze *map* *p*)))))))
 
 
@@ -231,7 +234,7 @@
 
 ;;ダメージ計算して　表示する位置とか設定
 (defun set-damage (atker defender)
-  (with-slots (x y) defender
+  (with-slots (x y obj-type hp atk-spd) defender
     (let* ((dmg-x (+ x 10))
 	   (dmg-y (+ y 20))
 	   (dmg-num (damage-calc atker defender))
@@ -244,6 +247,9 @@
 	(setf (dead defender) t)
 	(player-get-exp atker defender))
       (setf (dmg defender) dmg) ;;ダメージを表示するためのもの
+      (when (and (eq obj-type :boss) ;;ボス発狂モード
+		 (>= 50 hp))
+	(setf (atk-spd defender) 40))
       )))
 
 
@@ -259,11 +265,6 @@
 		 (sound-play *atk-enemy-wav*)
 		 (setf (atkhit p) t) ;;攻撃があたりました
 		 (set-damage p e)))))))) ;;ダメージ処理
-	    ;; (when (>= 0 (hp e))
-	    ;;   (setf (donjon-enemies *map*)
-	    ;; 	    (remove e (donjon-enemies *map*) :test #'equal))))
-	 ;; (text-out *hmemdc* (format nil "x:~d y:~d w:~d h:~d" (x buki) (y buki) (w buki) (h buki))
-	 ;; 	   100 600))))
 
 
 
@@ -308,8 +309,10 @@
 	 do (when (and (obj-hit-p buki kabe)
 		       (eq (obj-type kabe) :soft-block))
 	      (setf hit? t)
-	      (setf (obj-type kabe) :yuka
-		    (img kabe) +yuka+)))
+	      (setf (donjon-blocks *map*)
+		    (remove kabe (donjon-blocks *map*) :test #'equal))))
+	      ;;(setf (obj-type kabe) :yuka
+		;;    (img kabe) +yuka+)))
       (when hit?
 	(sound-play *atk-block-wav*)
 	(decf (hammer *p*))))))
@@ -409,14 +412,17 @@
     (decf (dmg-c p)))
   (when (zerop (dmg-c p)) ;;dmg-cが0の時
     (hit-enemies-player p)) ;;ダメージ処理
-  (cond
-    ((atk-now p)
-     (update-atk-img p))
-    ((hammer-now p)
-     (update-atk-img p))
-    (t
-     (update-input-key p)
-     (player-hit-item))))
+    ;;(when (dead p) ;;ゲームオーバー
+      ;;(setf (state p) :dead)))
+  ;;(when (null (dead p))
+    (cond
+      ((atk-now p)
+       (update-atk-img p))
+      ((hammer-now p)
+       (update-atk-img p))
+      (t
+       (update-input-key p)
+       (player-hit-item))))
     
 ;;ランダム方向へ移動 '(:up :down :right :left :stop)
 (defun set-rand-dir (e)
@@ -653,9 +659,11 @@
 ;;ブリガンドの行動
 (defun update-brigand (e)
   (incf (dir-c e)) ;;移動カウンター更新
+  (incf (atk-c e)) ;;攻撃カウンター
   (update-ido-anime-img e)
-  (when (and (= 1 (random 150)) ;;攻撃
+  (when (and (>= (atk-c e) 70) ;;攻撃
 	     (set-can-atk-dir e 600 600))
+    (setf (atk-c e) 0)
     (add-bri-ball-dir e))
   (if (> (dir-c e) 40)
       (progn (set-rand-dir e)
@@ -776,7 +784,7 @@
 ;;ボスのとげ攻撃
 (defun boss-toge-atk (e)
   (let ((toge (make-instance 'enemy :img 0 :obj-type :toge :hp 1 :maxhp 1
-			     :str (str e) :x (x e) :y (+ (y e) (h e))
+			     :str (str e) :x (x e) :y (+ (y e) (floor (h e) 2))
 			     :moto-w *fire-w* :moto-h *fire-h* :vx (rand+- 3) :vy (rand+- 3)
 			     :w *fire-w* :h *fire-h* :w/2 *fire-w/2* :h/2 *fire-h/2*)))
     (push toge (donjon-enemies *map*))
@@ -792,19 +800,21 @@
      (boss-toge-atk e))
     (t
      (incf (dir-c e)) ;;移動カウンター更新
-     (let ((ran (random 70)))
-     (cond
-       ((and (= 1 ran) ;;攻撃
-	     (set-can-atk-dir e (* (w e) 3) (* (h e) 3)))
-	(setf (atk-now e) :fire))
-       ((= ran 2)
-	(setf (atk-now e) :toge)))
-        ;;(set-enemy-atk e))
+     (incf (atk-c e))
+     (when (zerop (mod (atk-c e) (atk-spd e)))
+       (let ((ran (random 2)))
+	 (cond
+	   ((and (= 0 ran) ;;攻撃
+		 (set-can-atk-dir e (* (w e) 30) (* (h e) 30)))
+	    (setf (atk-now e) :fire))
+	   ((= ran 1)
+	    (setf (atk-now e) :toge)))
+	 (setf (atk-c e) 0)))
      (update-ido-anime-img e)
      (if (> (dir-c e) 40)
 	 (progn (set-rand-dir e)
 		(setf (dir-c e) 0))
-	 (update-enemy-pos e))))))
+	 (update-enemy-pos e)))))
 
 ;;ボスのとげ攻撃の更新
 (defun update-toge (e)
@@ -960,17 +970,16 @@
 ;;プレイヤーのステータス表示
 (defun render-p-status ()
   (let* ((num 10)
-	(time1 (get-internal-real-time))
-	(s (floor (- time1 *start-time*) 1000)))
-    (multiple-value-bind (m s) (floor s 60)
+	(time-now (get-internal-real-time))
+	(time1 (- time-now *start-time*)))
+    (multiple-value-bind (h m s ms) (get-hms time1)
       
     (macrolet ((hoge (n)
 		 `(incf ,n 25)))
       (select-object *hmemdc* *font30*)
       (set-text-color *hmemdc* (encode-rgb 255 255 255))
       (set-bk-mode *hmemdc* :transparent)
-      (text-out *hmemdc* (format nil "~2,'0d:~2,'0d" m s) (+ *map-w* 10) num)
-      (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) (hoge num))
+      (text-out *hmemdc* (format nil "~a" (name *p*)) (+ *map-w* 10) num)
       (text-out *hmemdc* (format nil "Lv:~2d" (level *p*)) (+ *map-w* 10) (hoge num))
       (text-out *hmemdc* (format nil "HP:~2d/~2d" (hp *p*) (maxhp *p*)) (+ *map-w* 10) (hoge num))
       (text-out *hmemdc* (format nil "攻:~2d" (str *p*)) (+ *map-w* 10) (hoge num))
@@ -997,7 +1006,11 @@
 		       32 32 32 32))
       ;;(text-out *hmemdc* (format nil "w:~2d" *change-screen-w*) (+ *map-w* 10) 250)
       ;;(text-out *hmemdc* (format nil "h:~2d" *change-screen-h*) (+ *map-w* 10) 290)
+      (select-object *hmemdc* *font30*)
+      (set-text-color *hmemdc* (encode-rgb 255 255 255))
       (text-out *hmemdc* (format nil "モゲアーガの塔 ~2,'0d階" (stage *p*)) 10 (+ *map-h* 10))
+      (text-out *hmemdc* (format nil "~2,'0d:~2,'0d:~2,'0d:~2,'0d" h m s ms) 200 (+ *map-h* 10))
+
      ))))
 
 
@@ -1062,18 +1075,69 @@
 		   :width-dest 32 :height-dest 32
 		   :transparent-color (encode-rgb 0 255 0)))
 
+;;タイトル画面
+(defun render-title-gamen (mes1 mes2)
+  (render-background)
+  (select-object *hmemdc* *font140*)
+  (set-bk-mode *hmemdc* :transparent)
+  (set-text-color *hmemdc* (encode-rgb 0 155 255))
+  (text-out *hmemdc* (format nil "~a" mes1) 130 100)
+  
+  (select-object *hogememdc* *objs-img*)
+  (if (= (cursor *p*) 0)
+      (new-trans-blt 380 400 (* 32 +cursor+) 0 32 32 32 32)
+      (new-trans-blt 380 450 (* 32 +cursor+) 0 32 32 32 32))
+  (select-object *hmemdc* *font40*)
+  (set-text-color *hmemdc* (encode-rgb 255 255 255))
+  (text-out *hmemdc* (format nil "~a" mes2) 430 400)
+  (text-out *hmemdc* (format nil "おわる") 430 450))
+
+
+
+;;エンディング画面
+(defun render-ending-gamen ()
+  (let ((time1 (- (endtime *p*) *start-time*)))
+    (multiple-value-bind (h m s ms) (get-hms time1)
+      (render-background)
+      (select-object *hmemdc* *font90*)
+      (set-bk-mode *hmemdc* :transparent)
+      (set-text-color *hmemdc* (encode-rgb 0 155 255))
+      (text-out *hmemdc* (format nil "モゲアーガの塔を制覇した！") 70 100)
+      (select-object *hmemdc* *font70*)
+      (set-text-color *hmemdc* (encode-rgb 255 255 255))
+      (text-out *hmemdc* (format nil "クリアタイム") 360 200)
+      (text-out *hmemdc* (format nil  "~2,'0d 時間 ~2,'0d 分 ~2,'0d 秒 ~2,'0d" h m s ms) 210 280)
+      (select-object *hogememdc* *objs-img*)
+      (if (= (cursor *p*) 0)
+	  (new-trans-blt 380 400 (* 32 +cursor+) 0 32 32 32 32)
+	  (new-trans-blt 380 450 (* 32 +cursor+) 0 32 32 32 32))
+      (select-object *hmemdc* *font40*)
+      (set-text-color *hmemdc* (encode-rgb 255 255 255))
+      (text-out *hmemdc* (format nil "もう一度やる") 430 400)
+      (text-out *hmemdc* (format nil "おわる") 430 450))))
+
+
 ;;ゲーム全体描画
 (defun render-game (hdc)
-  (render-map)
-  (render-player)
-  (render-p-status)
-  (render-enemies)
-  (render-test)
-  (render-all-damage)
+  (cond
+    ((eq (state *p*) :title) ;;タイトル画面
+     (render-title-gamen "モゲアーガの塔" "はじめる"))
+    ((eq (state *p*) :playing) ;;ゲーム
+     (render-map)
+     (render-player)
+     (render-p-status)
+     (render-enemies)
+     ;;(render-test)
+     (render-all-damage))
+    ((eq (state *p*) :dead)
+     (render-title-gamen "ゲームオーバー" "もう一度やる"))
+    ((eq (state *p*) :ending) ;;エンディング画面
+     (render-ending-gamen)
+     ))
   (transparent-blt hdc 0 0 *hmemdc* 0 0
-          :width-dest *change-screen-w* :height-dest *change-screen-h*
-          :width-source (rect-right *c-rect*) :height-source (rect-bottom *c-rect*) 
-          :transparent-color (encode-rgb 0 255 0)))
+		   :width-dest *change-screen-w* :height-dest *change-screen-h*
+		   :width-source (rect-right *c-rect*) :height-source (rect-bottom *c-rect*) 
+		   :transparent-color (encode-rgb 0 255 0)))
 
 ;;ダメージフォントの位置更新
 (defun update-damage-font (e)
@@ -1114,7 +1178,7 @@
   (let* ((n (random 100)))
     (cond
       ((>= 5 n 0)   :boots)
-      ((>= 25 n 6)  :potion)
+      ((>= 25 n 10)  :potion)
       ((>= 45 n 26) :hammer)
       ((>= 51  n 46) :sword)
       (t nil))))
@@ -1123,7 +1187,7 @@
 (defun no-boots-drop-item ()
   (let* ((n (random 100)))
     (cond
-      ((>= 25 n 0)  :potion)
+      ((>= 25 n 10)  :potion)
       ((>= 45 n 26) :hammer)
       ((>= 51  n 46) :sword)
       (t nil))))
@@ -1145,21 +1209,70 @@
 	;; 				:moto-w 32 :moto-h 32 :obj-type :potion)))
 	;;     (push drop-item (donjon-objects *map*)))))))
 
+;;ボスを倒したら
+(defun go-ending ()
+  (setf (state *p*) :ending
+	(endtime *p*) (get-internal-real-time)))
+
 ;;死んだ敵の情報を消す
 (defun delete-enemies ()
   (loop for e in (donjon-enemies *map*)
      do (when (and (null (dmg e))
 		   (dead e))
+	  (when (eq (obj-type e) :boss)
+	    (go-ending))
 	  (enemy-drop-item e)
 	  (setf (donjon-enemies *map*)
 		(remove e (donjon-enemies *map*) :test #'equal)))))
 
+
+;;ゲームを開始する
+(defun start-game ()
+  (init-game)
+  (setf (state *p*) :playing
+	(atk-c *p*) 0
+	(cursor *p*) 0
+	*start-time* (get-internal-real-time)
+	(z *keystate*) nil))
+
+;;タイトル画面での操作
+(defun update-title-and-ending-gamen (hwnd)
+  (with-slots (up down z enter) *keystate*
+    (incf (atk-c *p*))
+    (when (zerop (mod (atk-c *p*) 9))
+      (cond
+	(up
+	 (cond
+	   ((= (cursor *p*) 1)
+	    (setf (cursor *p*) 0))
+	   ((= (cursor *p*) 0)
+	    (setf (cursor *p*) 1))))
+	(down
+	 (cond
+	   ((= (cursor *p*) 0)
+	    (setf (cursor *p*) 1))
+	   ((= (cursor *p*) 1)
+	    (setf (cursor *p*) 0))))
+	((or z enter)
+	 (if (= (cursor *p*) 0)
+	     (start-game)
+	     (send-message hwnd (const +wm-close+) nil nil)))))))
+
+
 ;;ゲームループ
 (defun main-game-loop (hwnd)
-  (update-player *p*)
-  (update-enemies)
-  (update-damage-fonts)
-  (delete-enemies)
+  (cond
+    ((eq (state *p*) :title)
+     (update-title-and-ending-gamen hwnd))
+    ((eq (state *p*) :playing)
+     (update-player *p*)
+     (update-enemies)
+     (update-damage-fonts)
+     (delete-enemies))
+    ((eq (state *p*) :dead)
+     (update-title-and-ending-gamen hwnd))
+    ((eq (state *p*) :ending)
+     (update-title-and-ending-gamen hwnd)))
   (invalidate-rect hwnd nil nil))
 
 ;;ウィンドウサイズ変更時に画像拡大縮小する
@@ -1243,8 +1356,7 @@
 
 ;;メイン
 (defun moge ()
-  (setf *random-state* (make-random-state t)
-	*start-time* (get-internal-real-time))
+  (setf *random-state* (make-random-state t))
   (register-class "MOGE" (callback moge-wndproc)
 		  :styles (logior-consts +cs-hredraw+ +cs-vredraw+)
                   :cursor (load-cursor :arrow)

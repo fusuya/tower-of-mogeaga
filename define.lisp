@@ -59,6 +59,8 @@
   (%set-layered-window-attributes hwnd crkey balpha dwflags))
 
 (defparameter *font140* nil)
+(defparameter *font90* nil)
+(defparameter *font70* nil)
 (defparameter *font40* nil)
 (defparameter *font30* nil)
 (defparameter *font20* nil)
@@ -179,7 +181,7 @@
 (defparameter *kabe-break* nil)
 (defparameter *HPbar-max* 40)
 
-(my-enum +boots+ +door+ +hammer+ +hard-block+ +key+ +potion+ +soft-block+ +yuka+ +sword+)
+(my-enum +boots+ +door+ +hammer+ +hard-block+ +key+ +potion+ +soft-block+ +yuka+ +sword+ +cursor+)
 
 (my-enum +purple+ +red+ +green+ +blue+ +yellow+ +cyan+ +pink+ )
 
@@ -285,5 +287,8 @@
    (hammer-now :accessor hammer-now  :initform nil :initarg :hammer-now) ;;ハンマー中か
    (item       :accessor item        :initform nil :initarg :item)     ;;所持アイテム
    (stage      :accessor stage       :initform 1   :initarg :stage)    ;;プレイヤーのいる階層
+   (state      :accessor state       :initform :title :initarg :state)
+   (cursor     :accessor cursor      :initform 0   :initarg :cursor)
+   (endtime    :accessor endtime     :initform 0   :initarg :endtime)  ;;クリア時間
    (atkhit     :accessor atkhit      :initform nil :initarg :atkhit)   ;;攻撃モーション中に当たったか
    ))
