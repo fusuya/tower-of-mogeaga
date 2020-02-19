@@ -191,7 +191,7 @@
 			    (+ 2 (floor (random (stage *p*)) 2))
 			    (+ 2 (floor (random (stage *p*)) 2))
 			    (+ 7 (floor (random (stage *p*)) 2))
-			    2))
+			    1))
     (:hydra   (create-enemy e-type e-pos
 			    (+ 12 (floor (random (stage *p*)) 1))
 			    (+ 2 (floor (random (stage *p*)) 2))
@@ -225,8 +225,10 @@
 	 (boss (make-instance 'enemy :x (* (car e-pos) *blo-w46*)
 			      :y (* (cadr e-pos) *blo-h46*)
 			      :moto-w 64 :moto-h 64
-			      :str (+ 10 (level *p*)) :def 20 :hp (+ 90 (level *p*))
-			      :maxhp (+ 90 (level *p*))
+			      :str (+ 10 (floor (level *p*) 2))
+			      :def (+ 20 (floor (level *p*) 5))
+			      :hp (+ 90 (level *p*))
+			      :maxhp (+ 90 (* (level *p*) 2))
 			      :ido-spd 2 :expe 0
 			      :w 64 :h 64 :atk-spd 80
 			      :w/2 32 :h/2 32

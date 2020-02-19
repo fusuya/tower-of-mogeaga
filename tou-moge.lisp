@@ -56,19 +56,21 @@
 	*buki-img* (load-image "./img/buki-anime.bmp" :type :bitmap
 			     :flags '(:load-from-file :create-dib-section))))
 
+
+(defun init-keystate ()
+  (with-slots (left right down up z x c enter shift) *keystate*
+    (setf left nil right nil down nil up nil z nil x nil c nil enter nil shift nil)))
+
+
 ;;ゲーム初期化
 (defun init-game ()
-  (setf *battle?* nil
-	*screen-w* (+ *map-w* *status-w*)
-	*screen-h* (+ *map-h* *status-h*)
-	*mag-w* 1
-	*mag-h* 1
-        *start-time* (get-internal-real-time)
-        *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 1 :state :title
-			   :moto-w *p-w* :moto-h *p-h* :atk-now nil :ido-spd 2 :level 10
+  (setf *p* (make-instance 'player :w *p-w* :h *p-h* :str 5 :def 2 :stage 1 :state :title
+			   :hp 30 :maxhp 30 :name *name*
+			   :moto-w *p-w* :moto-h *p-h* :atk-now nil :ido-spd 2 :level 1
 			   :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2) :hammer 3
-			   :name "もげぞう" :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 1 :w *p-w* :h *p-h* :moto-w *p-w* :moto-h *p-h* :w/2 *p-w/2* :h/2 *p-h/2* :img 0))
+			   :img +down+ :buki (make-instance 'buki :name "こん棒" :atk 1 :w *p-w* :h *p-h* :moto-w *p-w* :moto-h *p-h* :w/2 *p-w/2* :h/2 *p-h/2* :img 0))
         *map* (make-donjon :tate *tate-block-num* :yoko *yoko-block-num*))
+  (init-keystate)
   (maze *map* *p*))
 
 ;;効果音ならす
@@ -107,6 +109,9 @@
         (:keyx (setf x nil))
 	(:keyc (setf c nil))
         (:keyz (setf z nil))))))
+
+
+
 
 ;;時間変換
 (defun get-hms (n)
@@ -661,7 +666,7 @@
   (incf (dir-c e)) ;;移動カウンター更新
   (incf (atk-c e)) ;;攻撃カウンター
   (update-ido-anime-img e)
-  (when (and (>= (atk-c e) 70) ;;攻撃
+  (when (and (>= (atk-c e) 100) ;;攻撃
 	     (set-can-atk-dir e 600 600))
     (setf (atk-c e) 0)
     (add-bri-ball-dir e))
@@ -1082,7 +1087,8 @@
   (set-bk-mode *hmemdc* :transparent)
   (set-text-color *hmemdc* (encode-rgb 0 155 255))
   (text-out *hmemdc* (format nil "~a" mes1) 130 100)
-  
+  (when (eq (state *p*) :dead)
+    (text-out *hmemdc* (format nil "~d階で力尽きた" (stage *p*)) 130 250))
   (select-object *hogememdc* *objs-img*)
   (if (= (cursor *p*) 0)
       (new-trans-blt 380 400 (* 32 +cursor+) 0 32 32 32 32)
@@ -1099,10 +1105,11 @@
   (let ((time1 (- (endtime *p*) *start-time*)))
     (multiple-value-bind (h m s ms) (get-hms time1)
       (render-background)
-      (select-object *hmemdc* *font90*)
+      (select-object *hmemdc* *font70*)
       (set-bk-mode *hmemdc* :transparent)
       (set-text-color *hmemdc* (encode-rgb 0 155 255))
-      (text-out *hmemdc* (format nil "モゲアーガの塔を制覇した！") 70 100)
+      (text-out *hmemdc* (format nil "~a は" (name *p*)) 10 10)
+      (text-out *hmemdc* (format nil "モゲアーガの塔を制覇した！") 170 100)
       (select-object *hmemdc* *font70*)
       (set-text-color *hmemdc* (encode-rgb 255 255 255))
       (text-out *hmemdc* (format nil "クリアタイム") 360 200)
@@ -1116,12 +1123,45 @@
       (text-out *hmemdc* (format nil "もう一度やる") 430 400)
       (text-out *hmemdc* (format nil "おわる") 430 450))))
 
+;;名前入力画面
+(defun set-name-gamen ()
+  (render-background)
+  (select-object *hmemdc* *font40*)
+  (set-bk-mode *hmemdc* :transparent)
+  (set-text-color *hmemdc* (encode-rgb 0 155 255))
+  (text-out *hmemdc* "※名前を入力してください （6文字まで）" 100 10)
+  (text-out *hmemdc* "決 or Enterキーでゲームスタート！" 500 400)
+  (let ((x 0) (y 0) (xx 50))
+    (loop :for i :across *aiueo*
+	 :for cursor from 0
+       :with m = 0
+       :do
+	 (when (equal i #\が)
+	   (setf xx 300
+		 y 0
+		 m 0))
+	 (cond
+	   ((zerop (mod m 5))
+	    (setf x xx
+		  y (+ y 50)
+		  m 0))
+	   
+	   (t (setf x (+ x 40))))
+	 (incf m)
+	 (when (= cursor (cursor *p*))
+	   (select-object *hmemdc* (get-stock-object :white-brush))
+	   (rectangle *hmemdc* x y (+ x 40) (+ y 40)))
+	 (select-object *hmemdc* *font40*)
+	 (text-out *hmemdc* (format nil "~a" i) x y))
+    (text-out *hmemdc* (format nil "名前：~a" *name*) 400 500)))
 
 ;;ゲーム全体描画
 (defun render-game (hdc)
   (cond
     ((eq (state *p*) :title) ;;タイトル画面
      (render-title-gamen "モゲアーガの塔" "はじめる"))
+    ((eq (state *p*) :name)
+     (set-name-gamen))
     ((eq (state *p*) :playing) ;;ゲーム
      (render-map)
      (render-player)
@@ -1226,14 +1266,17 @@
 		(remove e (donjon-enemies *map*) :test #'equal)))))
 
 
+(defun start-name ()
+  (setf (state *p*) :name
+	(atk-c *p*) 0
+	(cursor *p*) 0))
+
+
 ;;ゲームを開始する
 (defun start-game ()
   (init-game)
   (setf (state *p*) :playing
-	(atk-c *p*) 0
-	(cursor *p*) 0
-	*start-time* (get-internal-real-time)
-	(z *keystate*) nil))
+	*start-time* (get-internal-real-time)))
 
 ;;タイトル画面での操作
 (defun update-title-and-ending-gamen (hwnd)
@@ -1255,20 +1298,101 @@
 	    (setf (cursor *p*) 0))))
 	((or z enter)
 	 (if (= (cursor *p*) 0)
-	     (start-game)
+	     (if (or (eq :dead (state *p*)) (eq :ending (state *p*)))
+		 (start-game)
+		 (start-name))
 	     (send-message hwnd (const +wm-close+) nil nil)))))))
 
+;;ゲームオーバー判定
+(defun game-over? ()
+  (when (dead *p*)
+    (setf (state *p*) :dead)))
+
+;;名前決め
+(defun update-name-cursor ()
+  (incf (atk-c *p*))
+  (when (zerop (mod (atk-c *p*) 6))
+    (with-slots (up down right left z enter) *keystate*
+      (cond
+	(enter
+	 (start-game))
+	(z 
+	 (cond
+	   ((= (cursor *p*) 77)
+	    (start-game))
+	   ((= (cursor *p*) 76)
+	    (when (> (length (name *p*)) 0)
+	      (setf *name*
+		    (subseq *name* 0 (1- (length *name*))))))
+	   ((> 6 (length *name*))
+	    (setf *name*
+		  (concatenate 'string *name* (format nil "~a" (aref *aiueo* (cursor *p*))))))))
+	(up
+	 (cond
+	   ((> 5 (cursor *p*))
+	    (setf (cursor *p*) (+ (cursor *p*) 45)))
+	   ((>= 52 (cursor *p*) 50)
+	    (setf (cursor *p*) (+ (cursor *p*) 25)))
+	   ((>= 54 (cursor *p*) 53)
+	    (setf (cursor *p*) (+ (cursor *p*) 20)))
+	   (t
+	    (decf (cursor *p*) 5))))
+	(down
+	 (cond
+	   ((>= 49 (cursor *p*) 45)
+	    (setf (cursor *p*) (- (cursor *p*) 45)))
+	   ((>= 77 (cursor *p*) 75)
+	    (setf (cursor *p*) (- (cursor *p*) 25)))
+	   ((>= 74 (cursor *p*) 73)
+	    (setf (cursor *p*) (- (cursor *p*) 20)))
+	   (t
+	    (incf (cursor *p*) 5))))
+	(right
+	 (cond
+	   ((and  (> 30 (cursor *p*))
+		  (= (mod (cursor *p*) 5) 4))
+	    (setf (cursor *p*) (+ (cursor *p*) 46)))
+	   ((and  (> 50 (cursor *p*) 30)
+		  (= (mod (cursor *p*) 5) 4))
+	    (setf (cursor *p*) (- (cursor *p*) 4)))
+	   ((and  (>  75 (cursor *p*) 50)
+		  (= (mod (cursor *p*) 5) 4))
+	    (setf (cursor *p*) (- (cursor *p*) 54)))
+	   ((= 77 (cursor *p*))
+	    (setf (cursor *p*) 25))
+	   (t
+	    (incf (cursor *p*)))))
+	(left
+	 (cond
+	   ((and  (> 25 (cursor *p*))
+		  (= (mod (cursor *p*) 5) 0))
+	    (setf (cursor *p*) (+ (cursor *p*) 54)))
+	   ((and  (> 50 (cursor *p*) 29)
+		  (= (mod (cursor *p*) 5) 0))
+	    (setf (cursor *p*) (+ (cursor *p*) 4)))
+	   ((and  (>=  74 (cursor *p*) 50)
+		  (= (mod (cursor *p*) 5) 0))
+	    (setf (cursor *p*) (- (cursor *p*) 46)))
+	   ((= 75 (cursor *p*))
+	    (setf (cursor *p*) 29))
+	   ((= 25 (cursor *p*))
+	    (setf (cursor *p*) 77))
+	   (t
+	    (decf (cursor *p*)))))))))
 
 ;;ゲームループ
 (defun main-game-loop (hwnd)
   (cond
     ((eq (state *p*) :title)
      (update-title-and-ending-gamen hwnd))
+    ((eq (state *p*) :name)
+     (update-name-cursor))
     ((eq (state *p*) :playing)
      (update-player *p*)
      (update-enemies)
      (update-damage-fonts)
-     (delete-enemies))
+     (delete-enemies)
+     (game-over?))
     ((eq (state *p*) :dead)
      (update-title-and-ending-gamen hwnd))
     ((eq (state *p*) :ending)
@@ -1281,18 +1405,6 @@
 	 (change-h (hiword lp)))
     (setf *change-screen-w* change-w
 	  *change-screen-h* change-h)))
-
-(defun remake-obj ()
-  (loop for blo in (donjon-yuka *map*)
-     do (setf (x blo) (floor (* (x blo) *mag-w*))
-	      (y blo) (floor (* (y blo) *mag-h*))
-	      (w blo) (floor (* (w blo) *mag-w*))
-	      (h blo) (floor (* (h blo) *mag-h*))))
-  (loop for blo in (donjon-blocks *map*)
-     do (setf (x blo) (floor (* (x blo) *mag-w*))
-	      (y blo) (floor (* (y blo) *mag-h*))
-	      (w blo) (floor (* (w blo) *mag-w*))
-	      (h blo) (floor (* (h blo) *mag-h*)))))
 
 
 ;;クライアント領域を*client-w* *client-h*に設定
@@ -1333,7 +1445,6 @@
        (render-game hdc)))
     ((const +wm-size+)
      (change-screen-size lparam))
-     ;;(remake-obj))
     ((const +wm-close+)
      (destroy-window hwnd))
     ;;((const +wm-timer+)

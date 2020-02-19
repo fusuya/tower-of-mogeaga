@@ -83,9 +83,6 @@
 (defparameter *boss?* 0)
 (defparameter *end* 0)
 (defparameter *lv-exp* 100)
-(defparameter *start-time* 0)
-(defparameter *ha2ne2* nil)
-(defparameter *urawaza* nil)
 (defparameter *images* nil)
 (defparameter *anime-monsters-img* nil)
 
@@ -160,7 +157,7 @@
 (defparameter *c-rect* nil) ;;クライアント領域
 
 (defparameter *start-time* 0)
-
+(defparameter *name* nil)
 
 
 ;;画面領域
@@ -292,3 +289,8 @@
    (endtime    :accessor endtime     :initform 0   :initarg :endtime)  ;;クリア時間
    (atkhit     :accessor atkhit      :initform nil :initarg :atkhit)   ;;攻撃モーション中に当たったか
    ))
+
+
+
+(defparameter *aiueo*
+  "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやいゆえよらりるれろわをん■■がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽー消決")
