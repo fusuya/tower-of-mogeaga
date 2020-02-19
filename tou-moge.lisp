@@ -1130,6 +1130,7 @@
   (set-bk-mode *hmemdc* :transparent)
   (set-text-color *hmemdc* (encode-rgb 0 155 255))
   (text-out *hmemdc* "※名前を入力してください （6文字まで）" 100 10)
+  (text-out *hmemdc* "消 or xキーで一文字削除！" 500 350)
   (text-out *hmemdc* "決 or Enterキーでゲームスタート！" 500 400)
   (let ((x 0) (y 0) (xx 50))
     (loop :for i :across *aiueo*
@@ -1312,16 +1313,20 @@
 (defun update-name-cursor ()
   (incf (atk-c *p*))
   (when (zerop (mod (atk-c *p*) 6))
-    (with-slots (up down right left z enter) *keystate*
+    (with-slots (up down right left z x enter) *keystate*
       (cond
 	(enter
 	 (start-game))
+	(x
+	 (when (> (length *name*) 0)
+	      (setf *name*
+		    (subseq *name* 0 (1- (length *name*))))))
 	(z 
 	 (cond
 	   ((= (cursor *p*) 77)
 	    (start-game))
 	   ((= (cursor *p*) 76)
-	    (when (> (length (name *p*)) 0)
+	    (when (> (length *name*) 0)
 	      (setf *name*
 		    (subseq *name* 0 (1- (length *name*))))))
 	   ((> 6 (length *name*))
